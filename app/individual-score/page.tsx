@@ -26,7 +26,7 @@ const IndividualScore = () => {
     setResults(null);
   
     try {
-      const response = await fetch("/api/mozProxy", {
+      const response = await fetch("/api/moz", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
