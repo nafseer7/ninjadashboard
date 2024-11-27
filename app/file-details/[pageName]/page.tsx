@@ -6,7 +6,7 @@ import axios from "axios";
 
 const FileDetails = () => {
   const pathname = usePathname(); // Get the full path
-  const fileName = pathname.split("/").pop(); // Extract the dynamic file name
+  const fileName = pathname ? pathname.split("/").pop() : null; // Extract the dynamic file name
   const [fileData, setFileData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
