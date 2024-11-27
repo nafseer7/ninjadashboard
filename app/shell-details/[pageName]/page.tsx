@@ -45,7 +45,7 @@ const ShellDetailsPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://127.0.0.1:8200/view-file/?file_name=${fileName}`
+        `http://3.16.139.158:8200/view-file/?file_name=${fileName}`
       );
       const enrichedData = await enrichWithMetrics(response.data.urls);
       setFileDetails(enrichedData);
@@ -83,7 +83,7 @@ const ShellDetailsPage: React.FC = () => {
 
       const config = {
         method: "post",
-        url: "http://127.0.0.1:8080/proxy/moz-metrics/", // Proxy Moz API
+        url: "http://3.16.139.158:8080/proxy/moz-metrics/", // Proxy Moz API
         headers: {
           "Content-Type": "application/json",
         },

@@ -26,7 +26,7 @@ const WordPressAccessPage = () => {
   useEffect(() => {
     const fetchSuccessFiles = async () => {
       try {
-        const response = await axios.get("http://127.0.0.1:8080/list-success-cleaned/");
+        const response = await axios.get("http://3.16.139.158:8080/list-success-cleaned/");
         if (response.data) {
           setSuccessFiles(response.data.map((file: { filename: string }) => file.filename));
         }
@@ -59,7 +59,7 @@ const WordPressAccessPage = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post("http://127.0.0.1:8080/upload/", formData, {
+      const response = await axios.post("http://3.16.139.158:8080/upload/", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },
@@ -92,7 +92,7 @@ const WordPressAccessPage = () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        `http://127.0.0.1:8080/process-cleaned/?file_name=${cleanedFileName}`
+        `http://3.16.139.158:8080/process-cleaned/?file_name=${cleanedFileName}`
       );
 
       setProcessResponse(response.data);

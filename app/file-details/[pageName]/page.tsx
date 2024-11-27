@@ -29,7 +29,7 @@ const FileDetails = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://127.0.0.1:8080/view-content/?file_name=${cleanedFileName}.txt` // Fetch file data
+        `http://3.16.139.158:8080/view-content/?file_name=${cleanedFileName}.txt` // Fetch file data
       );
       const enrichedData = await enrichWithMetrics(response.data); // Enrich data with Moz metrics
       setFileData(enrichedData);
@@ -56,7 +56,7 @@ const FileDetails = () => {
         password,
       };
 
-      const response = await axios.post("http://127.0.0.1:8080/login-wordpress/", payload);
+      const response = await axios.post("http://3.16.139.158:8080/login-wordpress/", payload);
       const { admin_url } = response.data;
       window.open(admin_url, "_blank"); // Open the admin dashboard in a new tab
     } catch (error: unknown) {
@@ -90,7 +90,7 @@ const FileDetails = () => {
 
       const config = {
         method: "post",
-        url: "http://127.0.0.1:8080/proxy/moz-metrics/", // Use the proxy endpoint
+        url: "http://3.16.139.158:8080/proxy/moz-metrics/", // Use the proxy endpoint
         headers: {
           "Content-Type": "application/json",
         },

@@ -23,7 +23,7 @@ const FileDetails = () => {
         try {
             setLoading(true);
             const response = await axios.get(
-                `http://127.0.0.1:8080/view-content/?file_name=${cleanedFileName}.txt` // Add `.txt` during API call
+                `http://3.16.139.158:8080/view-content/?file_name=${cleanedFileName}.txt` // Add `.txt` during API call
             );
             const enrichedData = await enrichWithMetrics(response.data); // Enrich data with metrics
             setFileData(enrichedData);
