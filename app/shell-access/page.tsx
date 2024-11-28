@@ -18,7 +18,7 @@ const ShellAccessPage: React.FC = () => {
   // Fetch all success files
   const fetchSuccessFiles = async () => {
     try {
-      const response = await axios.get("http://3.16.139.158:8200/list-success-files/");
+      const response = await axios.get("https://gigantic-alyda-ott-bbd052a7.koyeb.app/list-success-files/");
       setSuccessFiles(response.data.success_files);
     } catch (error) {
       console.error("Error fetching success files:", error);
@@ -45,7 +45,7 @@ const ShellAccessPage: React.FC = () => {
 
     try {
       setLoading(true);
-      await axios.post("http://3.16.139.158:8200/upload/", formData, {
+      await axios.post("https://gigantic-alyda-ott-bbd052a7.koyeb.app/upload/", formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

@@ -96,7 +96,7 @@ const WordPressAccessPage = () => {
     try {
       setLoading(true);
       const response = await axios.post(
-        `http://3.16.139.158:8080/process-cleaned/?file_name=${cleanedFileName}`
+        `https://worthwhile-roseanna-ott-31c6c433.koyeb.app/process-cleaned/?file_name=${cleanedFileName}`
       );
 
       setProcessResponse(response.data);

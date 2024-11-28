@@ -45,7 +45,7 @@ const ShellDetailsPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `http://3.16.139.158:8200/view-file/?file_name=${fileName}`
+        `https://gigantic-alyda-ott-bbd052a7.koyeb.app/view-file/?file_name=${fileName}`
       );
       const enrichedData = await enrichWithMetrics(response.data.urls);
       setFileDetails(enrichedData);
@@ -83,7 +83,7 @@ const ShellDetailsPage: React.FC = () => {
 
       const config = {
         method: "post",
-        url: "http://3.16.139.158:8080/proxy/moz-metrics/", // Proxy Moz API
+        url: "https://worthwhile-roseanna-ott-31c6c433.koyeb.app/proxy/moz-metrics/", // Proxy Moz API
         headers: {
           "Content-Type": "application/json",
         },
