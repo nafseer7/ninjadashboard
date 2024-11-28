@@ -26,7 +26,9 @@ const WordPressAccessPage = () => {
   useEffect(() => {
     const fetchSuccessFiles = async () => {
       try {
-        const response = await axios.get("http://3.16.139.158:8080/list-success-cleaned/");
+        const baseUrl = process.env.NEXT_PUBLIC_API_URL_8080 || 'http://localhost:8080';
+        const response = await axios.get(`${baseUrl}/list-success-cleaned/`);
+
         if (response.data) {
           setSuccessFiles(response.data.map((file: { filename: string }) => file.filename));
         }
@@ -37,6 +39,7 @@ const WordPressAccessPage = () => {
 
     fetchSuccessFiles();
   }, []);
+
 
   // Handle file selection
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +62,8 @@ const WordPressAccessPage = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post("http://3.16.139.158:8080/upload/", formData, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL_8080 || 'http://localhost:8080'; // Fallback to localhost
+      const response = await axios.post(`${baseUrl}/upload/`, formData, {
         headers: {
           "Content-Type": "multipart/form-data",
         },

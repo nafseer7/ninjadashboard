@@ -22,8 +22,9 @@ const FileDetails = () => {
     const fetchFileData = async (cleanedFileName: string) => {
         try {
             setLoading(true);
+            const baseUrl = process.env.NEXT_PUBLIC_API_URL_8080 || 'http://localhost:8080'; // Fallback to localhost
             const response = await axios.get(
-                `http://3.16.139.158:8080/view-content/?file_name=${cleanedFileName}.txt` // Add `.txt` during API call
+                `${baseUrl}/view-content/?file_name=${cleanedFileName}.txt` // Add `.txt` during API call
             );
             const enrichedData = await enrichWithMetrics(response.data); // Enrich data with metrics
             setFileData(enrichedData);
