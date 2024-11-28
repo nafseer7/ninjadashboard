@@ -62,36 +62,43 @@ const ShellDetailsPage: React.FC = () => {
     }
   };
 
-  // Fetch Moz metrics and enrich the data
+  // Fetch Moz metrics in batches of 30 and enrich the data
   const enrichWithMetrics = async (urls: string[]) => {
     try {
-      const siteQueries = urls.map((url) => ({
-        query: url,
-        scope: "url",
-      }));
+      const batchSize = 30;
+      const metricsData: any[] = [];
 
-      const mozApiPayload = {
-        jsonrpc: "2.0",
-        id: "614522f4-29c8-4a75-94c6-8f03bf107903",
-        method: "data.site.metrics.fetch.multiple",
-        params: {
-          data: {
-            site_queries: siteQueries,
+      for (let i = 0; i < urls.length; i += batchSize) {
+        const batch = urls.slice(i, i + batchSize);
+        const siteQueries = batch.map((url) => ({
+          query: url,
+          scope: "url",
+        }));
+
+        const mozApiPayload = {
+          jsonrpc: "2.0",
+          id: "614522f4-29c8-4a75-94c6-8f03bf107903",
+          method: "data.site.metrics.fetch.multiple",
+          params: {
+            data: {
+              site_queries: siteQueries,
+            },
           },
-        },
-      };
+        };
 
-      const config = {
-        method: "post",
-        url: "https://worthwhile-roseanna-ott-31c6c433.koyeb.app/proxy/moz-metrics/", // Proxy Moz API
-        headers: {
-          "Content-Type": "application/json",
-        },
-        data: mozApiPayload,
-      };
+        const config = {
+          method: "post",
+          url: "https://worthwhile-roseanna-ott-31c6c433.koyeb.app/proxy/moz-metrics/", // Proxy Moz API
+          headers: {
+            "Content-Type": "application/json",
+          },
+          data: mozApiPayload,
+        };
 
-      const metricsResponse = await axios(config);
-      const metricsData = metricsResponse.data.result.results_by_site;
+        const metricsResponse = await axios(config);
+        const batchMetrics = metricsResponse.data.result.results_by_site || [];
+        metricsData.push(...batchMetrics);
+      }
 
       return urls.map((url, index) => {
         const metrics = metricsData[index]?.site_metrics || {};
