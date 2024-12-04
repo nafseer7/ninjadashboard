@@ -48,27 +48,94 @@ const FileDetails = () => {
     }
   };
 
-  const handleAccess = async (siteUrl: string, username: string, password: string) => {
-    try {
-      const payload = {
-        site_url: formatUrl(siteUrl),
-        username,
-        password,
-      };
+  // const handleAccess = async (siteUrl: string, username: string, password: string) => {
+  //   try {
+  //     const payload = {
+  //       site_url: formatUrl(siteUrl),
+  //       username,
+  //       password,
+  //     };
 
-      const response = await axios.post("https://worthwhile-roseanna-ott-31c6c433.koyeb.app/login-wordpress/", payload);
-      const { admin_url } = response.data;
-      window.open(admin_url, "_blank"); // Open the admin dashboard in a new tab
-    } catch (error: unknown) {
-      if (axios.isAxiosError(error)) {
-        console.error("Failed to access WordPress:", error.message);
-        alert("Failed to login. Please check the credentials or the site URL.");
-      } else {
-        console.error("An unexpected error occurred:", error);
-        alert("An unexpected error occurred. Please try again.");
-      }
+  //     const response = await axios.post("https://worthwhile-roseanna-ott-31c6c433.koyeb.app/login-wordpress/", payload);
+  //     const { admin_url } = response.data;
+  //     window.open(admin_url, "_blank"); // Open the admin dashboard in a new tab
+  //   } catch (error: unknown) {
+  //     if (axios.isAxiosError(error)) {
+  //       console.error("Failed to access WordPress:", error.message);
+  //       alert("Failed to login. Please check the credentials or the site URL.");
+  //     } else {
+  //       console.error("An unexpected error occurred:", error);
+  //       alert("An unexpected error occurred. Please try again.");
+  //     }
+  //   }
+  // };
+
+
+  // const handleAccess = async (siteUrl: string, username: string, password: string) => {
+  //   try {
+  //     // Ensure the payload is formatted correctly
+  //     const payload = {
+  //       site_url: siteUrl.trim(), // Remove extra spaces
+  //       username: username.trim(),
+  //       password: password.trim(),
+  //     };
+  
+  //     // Send the POST request
+  //     const response = await axios.post(
+  //       "https://worthwhile-roseanna-ott-31c6c433.koyeb.app/login-wordpress/",
+  //       payload,
+  //       {
+  //         headers: {
+  //           "Content-Type": "application/json", // Ensure proper headers
+  //         },
+  //       }
+  //     );
+  
+  //     const { admin_url } = response.data;
+  
+  //     if (admin_url) {
+  //       window.open(admin_url, "_blank"); // Open admin panel in a new tab
+  //     } else {
+  //       alert("Failed to retrieve admin URL. Please check the credentials.");
+  //     }
+  //   } catch (error) {
+  //     if (axios.isAxiosError(error)) {
+  //       console.error("Failed to access WordPress:", error.response?.data || error.message);
+  //       alert(error.response?.data.message || "Failed to log in. Please try again.");
+  //     } else {
+  //       console.error("Unexpected error:", error);
+  //       alert("An unexpected error occurred. Please try again.");
+  //     }
+  //   }
+  // };
+  
+
+const handleAccess = async (siteUrl: string, username: string, password: string) => {
+  try {
+    const response = await fetch('/api/login-wordpress', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ siteUrl, username, password }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      alert(`Login successful! Opening admin URL...`);
+    } else {
+      alert(`Login failed: ${data.message}`);
     }
-  };
+  } catch (error) {
+    console.error('Error during login:', error);
+    alert('An unexpected error occurred. Please try again.');
+  }
+};
+
+  
+  
+  
 
   const enrichWithMetrics = async (data: any[]) => {
     try {
