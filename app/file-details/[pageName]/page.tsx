@@ -110,28 +110,29 @@ const FileDetails = () => {
   // };
   
 
-const handleAccess = async (siteUrl: string, username: string, password: string) => {
-  try {
-    const response = await fetch('/api/login-wordpress', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ siteUrl, username, password }),
-    });
-
-    const data = await response.json();
-
-    if (response.ok) {
-      alert(`Login successful! Opening admin URL...`);
-    } else {
-      alert(`Login failed: ${data.message}`);
+  const handleAccess = async (siteUrl: string, username: string, password: string) => {
+    try {
+      const response = await fetch('/api/login-wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteUrl, username, password }),
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        // Open the login URL in a new tab
+        window.open(data.loginUrl, '_blank');
+      } else {
+        console.error('Failed to generate login URL:', data.message);
+        alert('Failed to generate login URL. Check the credentials or site URL.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An unexpected error occurred.');
     }
-  } catch (error) {
-    console.error('Error during login:', error);
-    alert('An unexpected error occurred. Please try again.');
-  }
-};
+  };
+  
 
   
   
