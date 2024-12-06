@@ -17,6 +17,15 @@ const IndividualScore = () => {
   >([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to split URLs into chunks of 30
+  const chunkArray = (array: string[], chunkSize: number) => {
+    const chunks = [];
+    for (let i = 0; i < array.length; i += chunkSize) {
+      chunks.push(array.slice(i, i + chunkSize));
+    }
+    return chunks;
+  };
+
   const handleSearch = async () => {
     if (!url) {
       setError("Please enter at least one valid URL.");
@@ -39,59 +48,73 @@ const IndividualScore = () => {
         return;
       }
 
-      // Prepare queries for the API
-      const siteQueries = urls.map((u) => ({
-        query: u,
-        scope: "url",
-      }));
+      // Split the URLs into chunks of 30
+      const urlChunks = chunkArray(urls, 30);
 
-      const response = await fetch("/api/moz", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          jsonrpc: "2.0",
-          id: "614522f4-29c8-4a75-94c6-8f03bf107903",
-          method: "data.site.metrics.fetch.multiple",
-          params: {
-            data: {
-              site_queries: siteQueries,
-            },
+      const allResults: any[] = [];
+
+      // Process each chunk sequentially
+      for (const chunk of urlChunks) {
+        // Prepare queries for the API
+        const siteQueries = chunk.map((u) => ({
+          query: u,
+          scope: "url",
+        }));
+
+        const response = await fetch("/api/moz", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch data from the server.");
-      }
-
-      const data = await response.json();
-      console.log("API Response:", data); // Debugging: log the full response
-
-      if (data.result && data.result.results_by_site) {
-        const resultsArray = data.result.results_by_site.map((site:any, index:any) => {
-          const siteMetrics = site?.site_metrics || null;
-          return siteMetrics
-            ? {
-                url: urls[index],
-                pageAuthority: siteMetrics.page_authority,
-                domainAuthority: siteMetrics.domain_authority,
-                spamScore: siteMetrics.spam_score,
-              }
-            : null;
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: "614522f4-29c8-4a75-94c6-8f03bf107903",
+            method: "data.site.metrics.fetch.multiple",
+            params: {
+              data: {
+                site_queries: siteQueries,
+              },
+            },
+          }),
         });
 
-        const filteredResults = resultsArray.filter((res:any) => res !== null);
-        if (filteredResults.length > 0) {
-          setResults(filteredResults as any);
-        } else {
-          setError("No metrics found for the provided URLs.");
+        if (!response.ok) {
+          throw new Error("Failed to fetch data from the server.");
         }
-      } else if (data.error) {
-        setError(`API Error: ${data.error.message || "Unknown error"}`);
+
+        const data = await response.json();
+        console.log("API Response:", data); // Debugging: log the full response
+
+        if (data.result && data.result.results_by_site) {
+          const resultsArray = data.result.results_by_site.map(
+            (site: any, index: any) => {
+              const siteMetrics = site?.site_metrics || null;
+              return siteMetrics
+                ? {
+                    url: chunk[index],
+                    pageAuthority: siteMetrics.page_authority,
+                    domainAuthority: siteMetrics.domain_authority,
+                    spamScore: siteMetrics.spam_score,
+                  }
+                : null;
+            }
+          );
+
+          const filteredResults = resultsArray.filter((res: any) => res !== null);
+          allResults.push(...filteredResults);
+        } else if (data.error) {
+          setError(`API Error: ${data.error.message || "Unknown error"}`);
+          break;
+        } else {
+          setError("Unexpected response format from the API.");
+          break;
+        }
+      }
+
+      if (allResults.length > 0) {
+        setResults(allResults);
       } else {
-        setError("Unexpected response format from the API.");
+        setError("No metrics found for the provided URLs.");
       }
     } catch (error) {
       setError((error as Error).message);
