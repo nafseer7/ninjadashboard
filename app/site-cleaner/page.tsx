@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import LeftNavbar from "../components/LeftNavbar";
 import Header from "../components/header";
 
-export const SiteCleaner = () => {
+const SiteCleaner = () => {
     const [input, setInput] = useState<string>("");
     const [rootUrls, setRootUrls] = useState<string[]>([]);
     const [filteredUrls, setFilteredUrls] = useState<string[]>([]);

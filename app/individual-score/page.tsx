@@ -4,18 +4,20 @@ import React, { useState } from "react";
 import LeftNavbar from "../components/LeftNavbar";
 import Header from "../components/header";
 
+type Result = {
+  pageAuthority: number;
+  domainAuthority: number;
+  spamScore: number;
+  url: string;
+};
+
 const IndividualScore = () => {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [results, setResults] = useState<
-    {
-      pageAuthority: number;
-      domainAuthority: number;
-      spamScore: number;
-      url: string;
-    }[]
-  >([]);
+  const [results, setResults] = useState<Result[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [sortCriteria, setSortCriteria] = useState<keyof Result>("pageAuthority");
+  const [sortOrder, setSortOrder] = useState<string>("desc");
 
   // Helper function to split URLs into chunks of 30
   const chunkArray = (array: string[], chunkSize: number) => {
@@ -51,7 +53,7 @@ const IndividualScore = () => {
       // Split the URLs into chunks of 30
       const urlChunks = chunkArray(urls, 30);
 
-      const allResults: any[] = [];
+      const allResults: Result[] = [];
 
       // Process each chunk sequentially
       for (const chunk of urlChunks) {
@@ -92,9 +94,9 @@ const IndividualScore = () => {
               return siteMetrics
                 ? {
                     url: chunk[index],
-                    pageAuthority: siteMetrics.page_authority,
-                    domainAuthority: siteMetrics.domain_authority,
-                    spamScore: siteMetrics.spam_score,
+                    pageAuthority: siteMetrics.page_authority || 0,
+                    domainAuthority: siteMetrics.domain_authority || 0,
+                    spamScore: siteMetrics.spam_score || 0,
                   }
                 : null;
             }
@@ -121,6 +123,29 @@ const IndividualScore = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSort = (criteria: keyof Result) => {
+    const sortedResults = [...results].sort((a, b) => {
+        // Explicitly type-narrow undefined values to 0
+        const aValue: number = typeof a[criteria] === "number" ? a[criteria] as number : 0;
+        const bValue: number = typeof b[criteria] === "number" ? b[criteria] as number : 0;
+
+        if (sortOrder === "asc") {
+            return aValue - bValue; // Compare as numbers
+        } else {
+            return bValue - aValue; // Compare as numbers
+        }
+    });
+
+    setResults(sortedResults);
+    setSortCriteria(criteria);
+};
+
+
+  const toggleSortOrder = () => {
+    setSortOrder((prevOrder) => (prevOrder === "asc" ? "desc" : "asc"));
+    handleSort(sortCriteria);
   };
 
   return (
@@ -155,6 +180,44 @@ const IndividualScore = () => {
 
           {results.length > 0 && (
             <div className="mt-6">
+              <div className="mb-4 flex items-center space-x-4">
+                <button
+                  onClick={() => handleSort("pageAuthority")}
+                  className={`px-4 py-2 rounded ${
+                    sortCriteria === "pageAuthority"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-300 text-gray-800"
+                  }`}
+                >
+                  Sort by Page Authority
+                </button>
+                <button
+                  onClick={() => handleSort("domainAuthority")}
+                  className={`px-4 py-2 rounded ${
+                    sortCriteria === "domainAuthority"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-300 text-gray-800"
+                  }`}
+                >
+                  Sort by Domain Authority
+                </button>
+                <button
+                  onClick={() => handleSort("spamScore")}
+                  className={`px-4 py-2 rounded ${
+                    sortCriteria === "spamScore"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-300 text-gray-800"
+                  }`}
+                >
+                  Sort by Spam Score
+                </button>
+                <button
+                  onClick={toggleSortOrder}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Toggle Order: {sortOrder === "asc" ? "Ascending" : "Descending"}
+                </button>
+              </div>
               <table className="table-auto w-full border border-gray-300">
                 <thead>
                   <tr>
