@@ -9,6 +9,8 @@ const SiteCleaner = () => {
     const [rootUrls, setRootUrls] = useState<string[]>([]);
     const [filteredUrls, setFilteredUrls] = useState<string[]>([]);
     const [filterExtensions, setFilterExtensions] = useState<string>("");
+    const [removeExtensionsInput, setRemoveExtensionsInput] = useState<string>("");
+
 
     const extractRootUrls = () => {
         const urls = input
@@ -28,6 +30,23 @@ const SiteCleaner = () => {
         const uniqueRoots = Array.from(new Set(roots.filter((url) => url !== null))); // Remove duplicates
         setRootUrls(uniqueRoots as string[]);
         setFilteredUrls(uniqueRoots as string[]); // Default filtered list is the full root URLs list
+    };
+
+
+    const removeExtensions = () => {
+        if (!removeExtensionsInput) {
+            return;
+        }
+
+        const extensionsToRemove = removeExtensionsInput
+            .split(",") // Split the extensions by commas
+            .map((ext) => ext.trim()) // Trim whitespace
+            .filter((ext) => ext); // Remove empty entries
+
+        const filtered = filteredUrls.filter(
+            (url) => !extensionsToRemove.some((ext) => url.endsWith(ext)) // Exclude URLs matching the extensions
+        );
+        setFilteredUrls(filtered);
     };
 
     const filterByExtensions = () => {
@@ -94,6 +113,24 @@ const SiteCleaner = () => {
                                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
                                 >
                                     Apply Filter
+                                </button>
+                            </div>
+
+
+                            {/* Remove Specific Extensions */}
+                            <div className="mb-4">
+                                <input
+                                    type="text"
+                                    className="p-2 border border-gray-300 rounded mr-2"
+                                    placeholder="Remove .com, .org, .net, etc. (comma-separated)"
+                                    value={removeExtensionsInput}
+                                    onChange={(e) => setRemoveExtensionsInput(e.target.value)}
+                                />
+                                <button
+                                    onClick={removeExtensions}
+                                    className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                                >
+                                    Remove Extensions
                                 </button>
                             </div>
 
