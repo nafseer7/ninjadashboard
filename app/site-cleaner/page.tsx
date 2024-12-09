@@ -11,7 +11,6 @@ const SiteCleaner = () => {
     const [filterExtensions, setFilterExtensions] = useState<string>("");
     const [removeExtensionsInput, setRemoveExtensionsInput] = useState<string>("");
 
-
     const extractRootUrls = () => {
         const urls = input
             .split("\n") // Split the input by newlines
@@ -21,13 +20,24 @@ const SiteCleaner = () => {
         const roots = urls.map((url) => {
             try {
                 const { protocol, hostname } = new URL(url);
-                return `${protocol}//${hostname}`;
+
+                // Validate hostname to exclude invalid or non-standard domains
+                if (
+                    hostname &&
+                    /^[a-zA-Z][a-zA-Z0-9.-]*$/.test(hostname) && // Hostname must start with a letter
+                    !hostname.startsWith("xn--") && // Exclude punycode (IDN) hostnames starting with "xn--"
+                    hostname.includes(".") // Ensure the hostname has a period (e.g., "example.com")
+                ) {
+                    return `${protocol}//${hostname}`;
+                }
+                return null; // Ignore invalid hostnames
             } catch {
                 return null; // Ignore invalid URLs
             }
         });
 
-        const uniqueRoots = Array.from(new Set(roots.filter((url) => url !== null))); // Remove duplicates
+        // Remove duplicates and null values
+        const uniqueRoots = Array.from(new Set(roots.filter((url) => url !== null)));
         setRootUrls(uniqueRoots as string[]);
         setFilteredUrls(uniqueRoots as string[]); // Default filtered list is the full root URLs list
     };
@@ -73,6 +83,41 @@ const SiteCleaner = () => {
             .catch((err) => alert("Failed to copy: " + err));
     };
 
+    const addFileToDb = async () => {
+        const currentDate = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
+        const filename = `filename_one_${currentDate}`;
+        const allUrls = filteredUrls; // Assuming `filteredUrls` is already available as an array
+        const filteredUrlsArray = filteredUrls; // Modify as needed if different
+        const status = "unprocessed"; // Set the status to 'unprocessed'
+    
+        try {
+            const response = await fetch("/api/addFilesToDb", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    filename,
+                    all_urls: allUrls,
+                    filtered_urls: filteredUrlsArray,
+                    status, // Include the status field
+                }),
+            });
+    
+            if (response.ok) {
+                const result = await response.json();
+                console.log("Data added successfully:", result);
+                alert("Added URL successfully to the database");
+            } else {
+                console.error("Failed to add data:", response.statusText);
+            }
+        } catch (error) {
+            console.error("Error adding data to DB:", error);
+        }
+    };
+    
+
+
     return (
         <>
             <div className="min-h-screen bg-gray-100 flex">
@@ -97,6 +142,12 @@ const SiteCleaner = () => {
                                 >
                                     Process Root URLs
                                 </button>
+                                <button
+                                    onClick={extractRootUrls}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded mr-2 hover:bg-blue-700"
+                                >
+                                    Remove Duplicates
+                                </button>
                             </div>
 
                             {/* Filter Section */}
@@ -115,7 +166,6 @@ const SiteCleaner = () => {
                                     Apply Filter
                                 </button>
                             </div>
-
 
                             {/* Remove Specific Extensions */}
                             <div className="mb-4">
@@ -145,12 +195,21 @@ const SiteCleaner = () => {
                             </div>
 
                             {/* Copy Button */}
-                            <button
-                                onClick={copyToClipboard}
-                                className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-                            >
-                                Copy to Clipboard
-                            </button>
+
+                            <div style={{ rowGap: '10px' }}>
+                                <button
+                                    onClick={addFileToDb}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                                >
+                                    Add files to DB
+                                </button>
+                                <button
+                                    onClick={copyToClipboard}
+                                    className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                                >
+                                    Copy to Clipboard
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
