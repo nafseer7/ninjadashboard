@@ -40,14 +40,13 @@ const ShellDetailsPage: React.FC = () => {
     }
   }, []);
 
-  // Fetch the file details and enrich with Moz metrics
-  const fetchFileDetails = async (fileName: string) => {
+  const fetchFileDetails = async (documentName: string) => {
     try {
       setLoading(true);
-      const response = await axios.get(
-        `https://gigantic-alyda-ott-bbd052a7.koyeb.app/view-file/?file_name=${fileName}`
-      );
-      const enrichedData = await enrichWithMetrics(response.data.urls);
+      const response = await axios.get(`/api/get-shell-file-details/${documentName}`);
+      console.log("Response Data:", response.data);  // Log to verify structure
+      const enrichedData = response.data.urlMappings;
+      console.log("Enriched Data:", enrichedData);  // Log to check if it's structured as expected
       setFileDetails(enrichedData);
     } catch (err) {
       if (axios.isAxiosError(err)) {
@@ -59,68 +58,6 @@ const ShellDetailsPage: React.FC = () => {
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  // Fetch Moz metrics in batches of 30 and enrich the data
-  const enrichWithMetrics = async (urls: string[]) => {
-    try {
-      const batchSize = 30;
-      const metricsData: any[] = [];
-
-      for (let i = 0; i < urls.length; i += batchSize) {
-        const batch = urls.slice(i, i + batchSize);
-        const siteQueries = batch.map((url) => ({
-          query: url,
-          scope: "url",
-        }));
-
-        const mozApiPayload = {
-          jsonrpc: "2.0",
-          id: "614522f4-29c8-4a75-94c6-8f03bf107903",
-          method: "data.site.metrics.fetch.multiple",
-          params: {
-            data: {
-              site_queries: siteQueries,
-            },
-          },
-        };
-
-        const config = {
-          method: "post",
-          url: "https://worthwhile-roseanna-ott-31c6c433.koyeb.app/proxy/moz-metrics/", // Proxy Moz API
-          headers: {
-            "Content-Type": "application/json",
-          },
-          data: mozApiPayload,
-        };
-
-        const metricsResponse = await axios(config);
-        const batchMetrics = metricsResponse.data.result.results_by_site || [];
-        metricsData.push(...batchMetrics);
-      }
-
-      return urls.map((url, index) => {
-        const metrics = metricsData[index]?.site_metrics || {};
-        return {
-          website: url,
-          domainAuthority: metrics.domain_authority || "N/A",
-          pageAuthority: metrics.page_authority || "N/A",
-          spamScore: metrics.spam_score || "N/A",
-        };
-      });
-    } catch (err) {
-      if (axios.isAxiosError(err)) {
-        console.error("Error fetching Moz metrics:", err.message);
-      } else {
-        console.error("Unknown error fetching Moz metrics:", err);
-      }
-      return urls.map((url) => ({
-        website: url,
-        domainAuthority: "N/A",
-        pageAuthority: "N/A",
-        spamScore: "N/A",
-      }));
     }
   };
 
@@ -159,7 +96,7 @@ const ShellDetailsPage: React.FC = () => {
           <h2 className="text-xl font-bold mb-4">File Details</h2>
           {pageName ? (
             <p className="mb-6">
-              <strong>File Name:</strong> {pageName}
+              <strong>Document Name:</strong> {pageName}
             </p>
           ) : (
             <p>Loading file details...</p>
@@ -209,22 +146,28 @@ const ShellDetailsPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {fileDetails.map((item, index) => (
-                    <tr key={index} className="border-b">
-                      <td className="p-3">{item.website}</td>
-                      <td className="p-3">{item.domainAuthority}</td>
-                      <td className="p-3">{item.pageAuthority}</td>
-                      <td className="p-3">{item.spamScore}</td>
-                      <td className="p-3">
-                        <button
-                          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 transition duration-200"
-                          onClick={() => window.open(formatUrl(item.website), "_blank")}
-                        >
-                          Open
-                        </button>
-                      </td>
+                  {fileDetails.length === 0 ? (
+                    <tr>
+                      <td colSpan={5}>No data available</td>
                     </tr>
-                  ))}
+                  ) : (
+                    fileDetails.map((item, index) => (
+                      <tr key={index} className="border-b">
+                        <td className="p-3">{item.website}</td>
+                        <td className="p-3">{item.domainAuthority}</td>
+                        <td className="p-3">{item.pageAuthority}</td>
+                        <td className="p-3">{item.spamScore}</td>
+                        <td className="p-3">
+                          <button
+                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 transition duration-200"
+                            onClick={() => window.open(formatUrl(item.website), "_blank")}
+                          >
+                            Open
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

@@ -3,10 +3,12 @@
 import React, { useState } from "react";
 import LeftNavbar from "../components/LeftNavbar";
 import Header from "../components/header";
+import { v4 as uuidv4 } from "uuid";
+
 
 const SiteCleaner = () => {
     const [input, setInput] = useState<string>("");
-    const [rootUrls, setRootUrls] = useState<string[]>([]);
+    const [urlMappings, setUrlMappings] = useState<{ original: string; cleaned: string }[]>([]);
     const [filteredUrls, setFilteredUrls] = useState<string[]>([]);
     const [filterExtensions, setFilterExtensions] = useState<string>("");
     const [removeExtensionsInput, setRemoveExtensionsInput] = useState<string>("");
@@ -17,31 +19,37 @@ const SiteCleaner = () => {
             .map((url) => url.trim()) // Trim whitespace
             .filter((url) => url); // Remove empty lines
 
-        const roots = urls.map((url) => {
+        const mappings = urls.map((original) => {
             try {
-                const { protocol, hostname } = new URL(url);
+                const { protocol, hostname } = new URL(original);
 
-                // Validate hostname to exclude invalid or non-standard domains
                 if (
                     hostname &&
-                    /^[a-zA-Z][a-zA-Z0-9.-]*$/.test(hostname) && // Hostname must start with a letter
-                    !hostname.startsWith("xn--") && // Exclude punycode (IDN) hostnames starting with "xn--"
-                    hostname.includes(".") // Ensure the hostname has a period (e.g., "example.com")
+                    /^[a-zA-Z][a-zA-Z0-9.-]*$/.test(hostname) &&
+                    !hostname.startsWith("xn--") &&
+                    hostname.includes(".")
                 ) {
-                    return `${protocol}//${hostname}`;
+                    const cleaned = `${protocol}//${hostname}`;
+                    return { original, cleaned };
                 }
-                return null; // Ignore invalid hostnames
+                return null;
             } catch {
-                return null; // Ignore invalid URLs
+                return null;
             }
         });
 
-        // Remove duplicates and null values
-        const uniqueRoots = Array.from(new Set(roots.filter((url) => url !== null)));
-        setRootUrls(uniqueRoots as string[]);
-        setFilteredUrls(uniqueRoots as string[]); // Default filtered list is the full root URLs list
-    };
+        const uniqueMappings = Array.from(
+            new Map(
+                mappings
+                    .filter((mapping): mapping is { original: string; cleaned: string } => mapping !== null)
+                    .map((mapping) => [mapping.cleaned, mapping])
+            ).values()
+        );
+        
 
+        setUrlMappings(uniqueMappings as { original: string; cleaned: string }[]);
+        setFilteredUrls(uniqueMappings.map((mapping) => mapping.cleaned));
+    };
 
     const removeExtensions = () => {
         if (!removeExtensionsInput) {
@@ -49,31 +57,34 @@ const SiteCleaner = () => {
         }
 
         const extensionsToRemove = removeExtensionsInput
-            .split(",") // Split the extensions by commas
-            .map((ext) => ext.trim()) // Trim whitespace
-            .filter((ext) => ext); // Remove empty entries
+            .split(",")
+            .map((ext) => ext.trim())
+            .filter((ext) => ext);
 
-        const filtered = filteredUrls.filter(
-            (url) => !extensionsToRemove.some((ext) => url.endsWith(ext)) // Exclude URLs matching the extensions
+        const filtered = urlMappings.filter(
+            (mapping) => !extensionsToRemove.some((ext) => mapping.cleaned.endsWith(ext))
         );
-        setFilteredUrls(filtered);
+
+        setUrlMappings(filtered);
+        setFilteredUrls(filtered.map((mapping) => mapping.cleaned));
     };
 
     const filterByExtensions = () => {
         if (!filterExtensions) {
-            setFilteredUrls(rootUrls); // If no filter, reset to all root URLs
+            setFilteredUrls(urlMappings.map((mapping) => mapping.cleaned));
             return;
         }
 
         const extensions = filterExtensions
-            .split(",") // Split the extensions by commas
-            .map((ext) => ext.trim()) // Trim whitespace
-            .filter((ext) => ext); // Remove empty entries
+            .split(",")
+            .map((ext) => ext.trim())
+            .filter((ext) => ext);
 
-        const filtered = rootUrls.filter((url) =>
-            extensions.some((ext) => url.endsWith(ext))
+        const filtered = urlMappings.filter((mapping) =>
+            extensions.some((ext) => mapping.cleaned.endsWith(ext))
         );
-        setFilteredUrls(filtered);
+
+        setFilteredUrls(filtered.map((mapping) => mapping.cleaned));
     };
 
     const copyToClipboard = () => {
@@ -85,10 +96,8 @@ const SiteCleaner = () => {
 
     const addFileToDb = async () => {
         const currentDate = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
-        const filename = `filename_one_${currentDate}`;
-        const allUrls = filteredUrls; // Assuming `filteredUrls` is already available as an array
-        const filteredUrlsArray = filteredUrls; // Modify as needed if different
-        const status = "unprocessed"; // Set the status to 'unprocessed'
+        const filename = `filename_${uuidv4()}_${currentDate}`; // Combine UUID and date
+        const status = "unprocessed";
     
         try {
             const response = await fetch("/api/addFilesToDb", {
@@ -97,10 +106,9 @@ const SiteCleaner = () => {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    filename,
-                    all_urls: allUrls,
-                    filtered_urls: filteredUrlsArray,
-                    status, // Include the status field
+                    filename, // A valid string (e.g., "filename_one_2024-12-10")
+                    urlMappings, // An array of { original, cleaned } objects
+                    status, // "processed" or "unprocessed"
                 }),
             });
     
@@ -116,7 +124,6 @@ const SiteCleaner = () => {
         }
     };
     
-
 
     return (
         <>
@@ -142,12 +149,7 @@ const SiteCleaner = () => {
                                 >
                                     Process Root URLs
                                 </button>
-                                <button
-                                    onClick={extractRootUrls}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded mr-2 hover:bg-blue-700"
-                                >
-                                    Remove Duplicates
-                                </button>
+                               
                             </div>
 
                             {/* Filter Section */}
@@ -195,8 +197,7 @@ const SiteCleaner = () => {
                             </div>
 
                             {/* Copy Button */}
-
-                            <div style={{ rowGap: '10px' }}>
+                            <div style={{ rowGap: "10px" }}>
                                 <button
                                     onClick={addFileToDb}
                                     className="px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"

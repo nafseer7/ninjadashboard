@@ -9,16 +9,20 @@ const client = new MongoClient(MONGO_URI);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
     if (req.method === "POST") {
-        const { filename, all_urls, filtered_urls, status } = req.body;
+        const { filename, urlMappings, status } = req.body;
+
+        // Log incoming request body for debugging
+        console.log("Incoming request body:", req.body);
 
         // Validate request data
-        if (!filename || !all_urls || !filtered_urls || !status) {
-            return res.status(400).json({ error: "Invalid request data" });
+        if (!filename || typeof filename !== "string") {
+            return res.status(400).json({ error: "Invalid or missing 'filename'" });
         }
-
-        // Validate status value
-        if (status !== "processed" && status !== "unprocessed") {
-            return res.status(400).json({ error: "Invalid status value. Must be 'processed' or 'unprocessed'." });
+        if (!urlMappings || !Array.isArray(urlMappings) || urlMappings.length === 0) {
+            return res.status(400).json({ error: "Invalid or missing 'urlMappings'" });
+        }
+        if (!status || (status !== "processed" && status !== "unprocessed")) {
+            return res.status(400).json({ error: "Invalid or missing 'status'" });
         }
 
         try {
@@ -29,9 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             // Prepare data to insert
             const data = {
                 filename,
-                all_urls,
-                filtered_urls,
-                status, // Add status flag
+                urlMappings,
+                status,
                 createdAt: new Date(),
             };
 
@@ -48,3 +51,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         res.status(405).json({ error: "Method not allowed" });
     }
 }
+
