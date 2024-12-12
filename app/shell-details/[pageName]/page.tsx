@@ -19,15 +19,7 @@ const ShellDetailsPage: React.FC = () => {
   const [fileDetails, setFileDetails] = useState<FileDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sortConfig, setSortConfig] = useState<{ key: string; direction: "asc" | "desc" } | null>(null);
-
-  // Format URLs to ensure proper structure
-  const formatUrl = (url: string): string => {
-    if (!url.startsWith("http://") && !url.startsWith("https://")) {
-      return `http://${url}`;
-    }
-    return url;
-  };
+  
 
   // Extract the page name from the route
   useEffect(() => {
@@ -44,48 +36,54 @@ const ShellDetailsPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await axios.get(`/api/get-shell-file-details/${documentName}`);
-      console.log("Response Data:", response.data);  // Log to verify structure
-      const enrichedData = response.data.urlMappings;
-      console.log("Enriched Data:", enrichedData);  // Log to check if it's structured as expected
+      const urls: { website: string }[] = response.data.urlMappings;
+
+      // Add initial file details with only websites
+      const initialFileDetails = urls.map((url) => ({
+        website: url.website, // Ensure we extract the `website` property
+        domainAuthority: "Loading...",
+        pageAuthority: "Loading...",
+        spamScore: "Loading...",
+      }));
+
+      setFileDetails(initialFileDetails);
+
+      // Fetch Moz metrics for each URL
+      const enrichedData = await Promise.all(
+        urls.map(async (urlObj) => {
+          try {
+            // Extract the `website` property and send as a plain string
+            const mozResponse = await axios.post(`/api/fetch-moz-metrics`, {
+              url: urlObj.website, // Send the plain URL string
+            });
+            return {
+              website: urlObj.website,
+              domainAuthority: mozResponse.data.domainAuthority || "N/A",
+              pageAuthority: mozResponse.data.pageAuthority || "N/A",
+              spamScore: mozResponse.data.spamScore || "N/A",
+            };
+          } catch (err) {
+            console.error("Error fetching Moz metrics for URL:", urlObj.website, err);
+            return {
+              website: urlObj.website,
+              domainAuthority: "Error",
+              pageAuthority: "Error",
+              spamScore: "Error",
+            };
+          }
+        })
+      );
+
       setFileDetails(enrichedData);
+      setError(null);
     } catch (err) {
-      if (axios.isAxiosError(err)) {
-        console.error("Axios error:", err.message);
-        setError("Failed to fetch file details. Please try again.");
-      } else {
-        console.error("Unknown error:", err);
-        setError("An unknown error occurred. Please try again.");
-      }
+      console.error("Error fetching file details:", err);
+      setError("Failed to fetch file details. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle sorting
-  const handleSort = (key: string) => {
-    let direction: "asc" | "desc" = "asc";
-    if (sortConfig && sortConfig.key === key && sortConfig.direction === "asc") {
-      direction = "desc";
-    }
-    setSortConfig({ key, direction });
-
-    const sortedData = [...fileDetails].sort((a, b) => {
-      const valueA = a[key as keyof FileDetail];
-      const valueB = b[key as keyof FileDetail];
-
-      if (typeof valueA === "number" && typeof valueB === "number") {
-        return direction === "asc" ? valueA - valueB : valueB - valueA;
-      }
-
-      if (typeof valueA === "string" && typeof valueB === "string") {
-        return direction === "asc" ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
-      }
-
-      return 0;
-    });
-
-    setFileDetails(sortedData);
-  };
 
   return (
     <div className="flex">
@@ -115,59 +113,35 @@ const ShellDetailsPage: React.FC = () => {
               <table className="table-auto w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-200">
-                    <th
-                      className="p-3 text-gray-700 font-semibold cursor-pointer"
-                      onClick={() => handleSort("website")}
-                    >
-                      Website {sortConfig?.key === "website" ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
-                    </th>
-                    <th
-                      className="p-3 text-gray-700 font-semibold cursor-pointer"
-                      onClick={() => handleSort("domainAuthority")}
-                    >
-                      Domain Authority{" "}
-                      {sortConfig?.key === "domainAuthority" ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
-                    </th>
-                    <th
-                      className="p-3 text-gray-700 font-semibold cursor-pointer"
-                      onClick={() => handleSort("pageAuthority")}
-                    >
-                      Page Authority{" "}
-                      {sortConfig?.key === "pageAuthority" ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
-                    </th>
-                    <th
-                      className="p-3 text-gray-700 font-semibold cursor-pointer"
-                      onClick={() => handleSort("spamScore")}
-                    >
-                      Spam Score{" "}
-                      {sortConfig?.key === "spamScore" ? (sortConfig.direction === "asc" ? "↑" : "↓") : ""}
-                    </th>
+                    <th className="p-3 text-gray-700 font-semibold">Website</th>
+                    <th className="p-3 text-gray-700 font-semibold">Domain Authority</th>
+                    <th className="p-3 text-gray-700 font-semibold">Page Authority</th>
+                    <th className="p-3 text-gray-700 font-semibold">Spam Score</th>
                     <th className="p-3 text-gray-700 font-semibold">Quick Access</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {fileDetails.length === 0 ? (
-                    <tr>
-                      <td colSpan={5}>No data available</td>
+                  {fileDetails.map((item, index) => (
+                    <tr key={index} className="border-b">
+                      <td className="p-3">{item.website}</td>
+                      <td className="p-3">{item.domainAuthority}</td>
+                      <td className="p-3">{item.pageAuthority}</td>
+                      <td className="p-3">{item.spamScore}</td>
+                      <td className="p-3">
+                        <button
+                          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 transition duration-200"
+                          onClick={() =>
+                            window.open(
+                              item.website.startsWith("http") ? item.website : `http://${item.website}`,
+                              "_blank"
+                            )
+                          }
+                        >
+                          Open
+                        </button>
+                      </td>
                     </tr>
-                  ) : (
-                    fileDetails.map((item, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="p-3">{item.website}</td>
-                        <td className="p-3">{item.domainAuthority}</td>
-                        <td className="p-3">{item.pageAuthority}</td>
-                        <td className="p-3">{item.spamScore}</td>
-                        <td className="p-3">
-                          <button
-                            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-700 transition duration-200"
-                            onClick={() => window.open(formatUrl(item.website), "_blank")}
-                          >
-                            Open
-                          </button>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  ))}
                 </tbody>
               </table>
             </div>

@@ -26,43 +26,6 @@ const getMongoClient = async () => {
   return { client, db };
 };
 
-// Helper function to fetch Moz metrics for a URL using the Moz API
-const fetchMozMetrics = async (url: string) => {
-  const mozApiPayload = {
-    jsonrpc: '2.0',
-    id: '614522f4-29c8-4a75-94c6-8f03bf107903',
-    method: 'data.site.metrics.fetch.multiple',
-    params: {
-      data: {
-        site_queries: [
-          {
-            query: url,
-            scope: 'url',
-          },
-        ],
-      },
-    },
-  };
-
-  try {
-    const response = await axios.post('https://api.moz.com/jsonrpc', mozApiPayload, {
-      headers: {
-        'x-moz-token': 'bW96c2NhcGUtb0xTSllzbTlYMDpaN2NGeERNaDhodFllc0JLSEFsTzc0TWtHczRrTFhXWQ==', // Replace with your actual Moz token
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const metrics = response.data.result.results_by_site[0]?.site_metrics || {};
-    return metrics;
-  } catch (err) {
-    console.error('Error fetching Moz metrics:', err);
-    return {
-      domainAuthority: 'N/A',
-      pageAuthority: 'N/A',
-      spamScore: 'N/A',
-    };
-  }
-};
 
 // API route handler to fetch file details and Moz metrics
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -88,17 +51,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Fetch cleaned URLs from urlMappings
     const urlMappings = document.urlMappings || [];
-    const cleanedUrls = urlMappings.map((item: any) => item.cleaned);
+    const cleanedUrls = urlMappings.map((item: any) => item.original);
 
-    // Fetch Moz metrics for each cleaned URL dynamically
     const enrichedUrls = await Promise.all(
       cleanedUrls.map(async (url: string) => {
-        const metrics = await fetchMozMetrics(url);
+        
         return {
           website: url,
-          domainAuthority: metrics.domainAuthority,
-          pageAuthority: metrics.pageAuthority,
-          spamScore: metrics.spamScore,
+          
         };
       })
     );
