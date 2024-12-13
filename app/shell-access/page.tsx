@@ -1,205 +1,223 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Header from "../components/header";
-import LeftNavbar from "../components/LeftNavbar";
 import axios from "axios";
+import LeftNavbar from "../components/LeftNavbar";
+import Header from "../components/header";
+import { MongoClient, ObjectId } from "mongodb";
 
-const ShellAccessPage: React.FC = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [successFiles, setSuccessFiles] = useState<string[]>([]);
+
+type UrlMapping = {
+  original: string;
+  cleaned: string;
+};
+
+type FileData = {
+  _id: string;
+  filename: string;
+  urlMappings: UrlMapping[];
+  status: string;
+  createdAt: string;
+};
+
+const ProcessFilesPage: React.FC = () => {
+  const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [files, setFiles] = useState<any[]>([]); // State to hold fetched file data
+  const [processedUrls, setProcessedUrls] = useState<string[]>([]);
 
-  // Fetch success files and URL data on component load
-  useEffect(() => {
-    fetchSuccessFiles();
-    fetchFilesData(); // Fetch files data from the new API
-  }, []);
-
-  // Fetch all success files
-  const fetchSuccessFiles = async () => {
-    try {
-      const response = await axios.get("https://gigantic-alyda-ott-bbd052a7.koyeb.app/list-success-files/");
-      setSuccessFiles(response.data.success_files);
-    } catch (error) {
-      console.error("Error fetching success files:", error);
-    }
-  };
-
-  // Fetch files data from the new API
+  // Fetch files data from MongoDB API
   const fetchFilesData = async () => {
     try {
-      const response = await axios.get("/api/get-shell-details"); // API call to the Next.js API route
-      setFiles(response.data); // Set the files data to state
+      const response = await axios.get("/api/get-shell-details"); // API to fetch MongoDB files
+      setFiles(response.data);
     } catch (error) {
       console.error("Error fetching files data:", error);
     }
   };
 
-  // Handle file upload
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setSelectedFile(e.target.files[0]);
+
+  const MONGO_URI = "mongodb+srv://nafseerck:7gbNMNAc5s236F5K@overthetop.isxuv3s.mongodb.net";
+  const DB_NAME = "ninjadb";
+
+  // Check if a URL has an input file
+  const checkFileInputAndSubmit = async (url: string): Promise<string | null> => {
+    try {
+      const response = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
+  
+      // If the status is not 200, ignore this URL
+      if (!response.ok) {
+        console.error(`Skipping URL: ${url}, Status: ${response.status}`);
+        return null;
+      }
+  
+      // Parse the HTML content
+      const htmlText = await response.text();
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, "text/html");
+  
+      // Check for <input type="file"> or <input type="submit" value="Upload">
+      const fileInput = doc.querySelector('input[type="file"]');
+      const submitButton = doc.querySelector('input[type="submit"][value="Upload"]');
+  
+      // Return the URL if either element is found
+      if (fileInput || submitButton) {
+        return url;
+      }
+  
+      return null; // No matching elements found
+    } catch (error) {
+      console.error(`Error occurred for ${url}:`, error);
+      return null;
     }
   };
+  
 
-  // Submit file to the backend
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedFile) {
-      alert("Please select a file to upload.");
-      return;
+  // Process URLs concurrently
+  const processUrlsConcurrently = async (urls: string[], maxConcurrent = 10): Promise<string[]> => {
+    const results: string[] = [];
+
+    for (let i = 0; i < urls.length; i += maxConcurrent) {
+      const batch = urls.slice(i, i + maxConcurrent);
+      const batchResults = await Promise.all(batch.map((url) => checkFileInputAndSubmit(url)));
+
+      // Filter out null results (failed URLs)
+      results.push(...batchResults.filter((result) => result !== null) as string[]);
     }
 
-    const formData = new FormData();
-    formData.append("file", selectedFile);
+    return results;
+  };
 
+  // Process file URL mappings and update MongoDB
+  const handleProcessFile = async (fileId: string, urlMappings: UrlMapping[]) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      await axios.post("https://gigantic-alyda-ott-bbd052a7.koyeb.app/upload/", formData, {
+      const originalUrls = urlMappings.map((mapping) => mapping.original);
+
+      // Process URLs to find those with file input
+      const workingUrls = await processUrlsConcurrently(originalUrls);
+
+      // Update the file's status and URL mappings using the API route
+      const response = await fetch(`/api/update-file-status`, {
+        method: "POST",
         headers: {
-          "Content-Type": "multipart/form-data",
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({
+          fileId,
+          urlMappings: urlMappings.filter((mapping) => workingUrls.includes(mapping.original)),
+          status: "processed",
+        }),
       });
-      alert("File uploaded and processed successfully!");
-      setSelectedFile(null);
-      fetchSuccessFiles(); // Refresh the file list
+
+      if (!response.ok) {
+        throw new Error("Failed to update file status");
+      }
+
+      // Refresh file data
+      fetchFilesData();
+      setProcessedUrls(workingUrls);
+      alert("File processed successfully!");
     } catch (error) {
-      console.error("Error uploading file:", error);
-      alert("Error uploading file.");
+      console.error("Error processing file:", error);
+      alert("Failed to process file.");
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to call the process URL API
-  const handleProcessClick = async (documentId: string) => {
-    try {
-      setLoading(true); // Show loading state
-      // API call to process the URL mappings
-      const response = await axios.post(
-        `https://gigantic-alyda-ott-bbd052a7.koyeb.app/process-url-mappings/${documentId}`,
-      );
 
-      if (response.data.message === "Document updated successfully.") {
-        // Successfully processed, refresh files data
-        fetchFilesData();
-        alert("File processed successfully!");
-      } else {
-        alert("Failed to process the file.");
-      }
-    } catch (error) {
-      console.error("Error processing file:", error);
-      alert("Error processing file.");
-    } finally {
-      setLoading(false); // Hide loading state
-    }
-  };
+  useEffect(() => {
+    fetchFilesData();
+  }, []);
 
   return (
-    <div className="flex">
-      <LeftNavbar />
-      <div className="flex flex-col w-full">
-        <Header />
-        <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">Shell Access</h2>
-          <p className="mb-6">Upload your shell file and view the details securely.</p>
+    <>
 
-          {/* Upload Form */}
-          <form onSubmit={handleSubmit} className="mb-6">
-            <input
-              type="file"
-              onChange={handleFileChange}
-              className="mb-4"
-              accept=".txt"
-            />
-            <button
-              type="submit"
-              className="bg-blue-500 text-white px-4 py-2 rounded"
-              disabled={loading}
-            >
-              {loading ? "Uploading..." : "Upload File"}
-            </button>
-          </form>
+      <div className="flex">
+        <LeftNavbar />
+        <div className="flex flex-col w-full">
+          <Header />
+          <div className="p-6">
+            <h2 className="text-xl font-bold mb-4">Process Files</h2>
+            <p className="mb-6">Process files to check for input elements and update their status.</p>
 
-          {/* Files Data Table */}
-          <h3 className="text-lg font-semibold mb-4">Files</h3>
-          {files.length === 0 ? (
-            <p>No files available.</p>
-          ) : (
-            <table className="table-auto w-full border">
-              <thead>
-                <tr>
-                  <th className="border px-4 py-2">Document ID</th>
-                  <th className="border px-4 py-2">Filename</th>
-                  <th className="border px-4 py-2">Status</th>
-                  <th className="border px-4 py-2">Quick Access</th>
-                </tr>
-              </thead>
-              <tbody>
-                {files.map((file) => (
-                  <tr key={file._id}>
-                    <td className="border px-4 py-2">{file._id}</td>
-                    <td className="border px-4 py-2">{file.filename}</td>
-                    <td className="border px-4 py-2">{file.status}</td>
-                    <td className="border px-4 py-2">
-                      {file.status === "unprocessed" ? (
+            {/* Files Data Table */}
+            <h3 className="text-lg font-semibold mb-4">Files</h3>
+            {files.length === 0 ? (
+              <p>No files available.</p>
+            ) : (
+              <table className="table-auto w-full border">
+                <thead>
+                  <tr>
+                    <th className="border px-4 py-2">Filename</th>
+                    <th className="border px-4 py-2">Status</th>
+                    <th className="border px-4 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {files.map((file) => (
+                    <tr key={file._id}>
+                      <td className="border px-4 py-2">{file.filename}</td>
+                      <td className="border px-4 py-2">{file.status}</td>
+                      <td className="border px-4 py-2">
+                        {file.status === "unprocessed" ? (
+                          <button
+                            className="bg-blue-500 text-white px-4 py-2 rounded"
+                            onClick={() => handleProcessFile(file._id, file.urlMappings)}
+                            disabled={loading}
+                          >
+                            {loading ? "Processing..." : "Process"}
+                          </button>
+                        ) : (
+                          <button
+                            className="bg-green-500 text-white px-4 py-2 rounded"
+                            onClick={() => (window.location.href = `/shell-details/${file._id}`)}
+                          >
+                            Access
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+
+              </table>
+            )}
+
+            {/* Processed URLs */}
+            <h3 className="text-lg font-semibold mb-4 pt-5">Processed Files</h3>
+            {processedUrls.length === 0 ? (
+              <p>No processed files available.</p>
+            ) : (
+              <table className="table-auto w-full border mb-6">
+                <thead>
+                  <tr>
+                    <th className="border px-4 py-2">File Name</th>
+                    <th className="border px-4 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {processedUrls.map((fileName) => (
+                    <tr key={fileName}>
+                      <td className="border px-4 py-2">{fileName}</td>
+                      <td className="border px-4 py-2">
                         <button
-                          onClick={() => handleProcessClick(file._id)}
-                          className="bg-blue-500 text-white px-4 py-2 rounded"
-                          disabled={loading}
-                        >
-                          {loading ? "Processing..." : "Click to Process"}
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => window.location.href = `/shell-details/${file._id}`}
+                          onClick={() => (window.location.href = `/shell-details/${fileName}`)}
                           className="bg-green-500 text-white px-4 py-2 rounded"
                         >
                           Access
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {/* Success Files Table */}
-          <h3 className="text-lg font-semibold mb-4 pt-5">Processed Files</h3>
-          {successFiles.length === 0 ? (
-            <p>No files available.</p>
-          ) : (
-            <table className="table-auto w-full border mb-6">
-              <thead>
-                <tr>
-                  <th className="border px-4 py-2">File Name</th>
-                  <th className="border px-4 py-2">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {successFiles.map((fileName) => (
-                  <tr key={fileName}>
-                    <td className="border px-4 py-2">{fileName}</td>
-                    <td className="border px-4 py-2">
-                      <button
-                        onClick={() => window.location.href = `/shell-details/${fileName}`}
-                        className="bg-green-500 text-white px-4 py-2 rounded"
-                      >
-                        Access
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 
-export default ShellAccessPage;
+export default ProcessFilesPage;

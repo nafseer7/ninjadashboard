@@ -5,11 +5,11 @@ import URL from "@/models/URL";
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method === "GET") {
     try {
-      // Connect to the database (ninjadb)
+      // Connect to the database
       await connectToDatabase();
 
-      // Fetch documents from the 'urls' collection
-      const files = await URL.find({}, { _id: 1, filename: 1, status: 1 }).lean();
+      // Fetch documents from the 'urls' collection, including urlMappings
+      const files = await URL.find({}, { _id: 1, filename: 1, status: 1, urlMappings: 1 }).lean();
 
       // Return the files data as JSON
       res.status(200).json(files);
