@@ -24,6 +24,8 @@ const ProcessFilesPage: React.FC = () => {
   const [files, setFiles] = useState<FileData[]>([]);
   const [loading, setLoading] = useState(false);
   const [processedUrls, setProcessedUrls] = useState<string[]>([]);
+  const [progress, setProgress] = useState<number>(0);
+
 
   // Fetch files data from MongoDB API
   const fetchFilesData = async () => {
@@ -43,53 +45,80 @@ const ProcessFilesPage: React.FC = () => {
   const checkFileInputAndSubmit = async (url: string): Promise<string | null> => {
     try {
       const response = await fetch(`/api/proxy?url=${encodeURIComponent(url)}`);
-  
+
       // If the status is not 200, ignore this URL
       if (!response.ok) {
         console.error(`Skipping URL: ${url}, Status: ${response.status}`);
         return null;
       }
-  
+
       // Parse the HTML content
       const htmlText = await response.text();
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlText, "text/html");
-  
+
       // Check for <input type="file"> or <input type="submit" value="Upload">
       const fileInput = doc.querySelector('input[type="file"]');
       const submitButton = doc.querySelector('input[type="submit"][value="Upload"]');
-  
+
       // Return the URL if either element is found
       if (fileInput || submitButton) {
         return url;
       }
-  
+
       return null; // No matching elements found
     } catch (error) {
       console.error(`Error occurred for ${url}:`, error);
       return null;
     }
   };
-  
+
 
   // Process URLs concurrently
-  const processUrlsConcurrently = async (urls: string[], maxConcurrent = 10): Promise<string[]> => {
+  const processUrlsConcurrently = async (
+    urls: string[],
+    maxConcurrent = 10
+  ): Promise<string[]> => {
     const results: string[] = [];
+    let currentProgress = 0;
 
     for (let i = 0; i < urls.length; i += maxConcurrent) {
       const batch = urls.slice(i, i + maxConcurrent);
-      const batchResults = await Promise.all(batch.map((url) => checkFileInputAndSubmit(url)));
-
-      // Filter out null results (failed URLs)
+      const batchResults = await Promise.all(
+        batch.map((url) => checkFileInputAndSubmit(url))
+      );
       results.push(...batchResults.filter((result) => result !== null) as string[]);
+
+      // Simulate progress update
+      currentProgress = Math.min(
+        Math.round(((i + maxConcurrent) / urls.length) * 100),
+        100
+      );
+      updateProgressSmoothly(currentProgress);
     }
 
     return results;
   };
 
+  const updateProgressSmoothly = (target: number) => {
+    let start = progress;
+    const interval = setInterval(() => {
+      start += 1;
+      if (start >= target) {
+        clearInterval(interval);
+        setProgress(target); // Ensure final value is set
+      } else {
+        setProgress(start);
+      }
+    }, 20); // Controls the speed of the progress animation
+  };
+  
+
   // Process file URL mappings and update MongoDB
   const handleProcessFile = async (fileId: string, urlMappings: UrlMapping[]) => {
     setLoading(true);
+    setProgress(1);
+
     try {
       const originalUrls = urlMappings.map((mapping) => mapping.original);
 
@@ -122,6 +151,8 @@ const ProcessFilesPage: React.FC = () => {
       alert("Failed to process file.");
     } finally {
       setLoading(false);
+      setProgress(0);
+
     }
   };
 
@@ -132,6 +163,22 @@ const ProcessFilesPage: React.FC = () => {
 
   return (
     <>
+
+
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-80 z-50">
+          <div className="text-center">
+            <div className="text-white text-3xl font-bold mb-4">Processing...</div>
+            <div className="relative w-64 h-4 bg-gray-200 rounded-full">
+              <div
+                className="absolute h-4 bg-blue-500 rounded-full"
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            <div className="text-white text-xl mt-2">{progress}%</div>
+          </div>
+        </div>
+      )}
 
       <div className="flex">
         <LeftNavbar />

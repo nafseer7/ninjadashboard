@@ -19,7 +19,8 @@ const ShellDetailsPage: React.FC = () => {
   const [fileDetails, setFileDetails] = useState<FileDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
   // Extract the page name from the route
   useEffect(() => {
@@ -40,7 +41,7 @@ const ShellDetailsPage: React.FC = () => {
 
       // Add initial file details with only websites
       const initialFileDetails = urls.map((url) => ({
-        website: url.website, // Ensure we extract the `website` property
+        website: url.website,
         domainAuthority: "Loading...",
         pageAuthority: "Loading...",
         spamScore: "Loading...",
@@ -52,9 +53,8 @@ const ShellDetailsPage: React.FC = () => {
       const enrichedData = await Promise.all(
         urls.map(async (urlObj) => {
           try {
-            // Extract the `website` property and send as a plain string
             const mozResponse = await axios.post(`/api/fetch-moz-metrics`, {
-              url: urlObj.website, // Send the plain URL string
+              url: urlObj.website,
             });
             return {
               website: urlObj.website,
@@ -84,6 +84,30 @@ const ShellDetailsPage: React.FC = () => {
     }
   };
 
+  const handleSort = (field: string) => {
+    const order = sortField === field && sortOrder === "asc" ? "desc" : "asc";
+    setSortField(field);
+    setSortOrder(order);
+
+    const sortedDetails = [...fileDetails].sort((a, b) => {
+      const valueA = a[field as keyof FileDetail];
+      const valueB = b[field as keyof FileDetail];
+
+      if (valueA === "Error" || valueB === "Error" || valueA === "N/A" || valueB === "N/A") {
+        return 0; // Keep errors or "N/A" in place
+      }
+
+      const numA = parseFloat(valueA as string);
+      const numB = parseFloat(valueB as string);
+
+      if (order === "asc") {
+        return numA > numB ? 1 : -1;
+      }
+      return numA < numB ? 1 : -1;
+    });
+
+    setFileDetails(sortedDetails);
+  };
 
   return (
     <div className="flex">
@@ -114,9 +138,24 @@ const ShellDetailsPage: React.FC = () => {
                 <thead>
                   <tr className="bg-gray-200">
                     <th className="p-3 text-gray-700 font-semibold">Website</th>
-                    <th className="p-3 text-gray-700 font-semibold">Domain Authority</th>
-                    <th className="p-3 text-gray-700 font-semibold">Page Authority</th>
-                    <th className="p-3 text-gray-700 font-semibold">Spam Score</th>
+                    <th
+                      className="p-3 text-gray-700 font-semibold cursor-pointer"
+                      onClick={() => handleSort("domainAuthority")}
+                    >
+                      Domain Authority {sortField === "domainAuthority" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="p-3 text-gray-700 font-semibold cursor-pointer"
+                      onClick={() => handleSort("pageAuthority")}
+                    >
+                      Page Authority {sortField === "pageAuthority" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
+                    <th
+                      className="p-3 text-gray-700 font-semibold cursor-pointer"
+                      onClick={() => handleSort("spamScore")}
+                    >
+                      Spam Score {sortField === "spamScore" && (sortOrder === "asc" ? "↑" : "↓")}
+                    </th>
                     <th className="p-3 text-gray-700 font-semibold">Quick Access</th>
                   </tr>
                 </thead>
