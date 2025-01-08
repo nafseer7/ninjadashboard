@@ -14,30 +14,44 @@ const SiteCleaner = () => {
     const [removeExtensionsInput, setRemoveExtensionsInput] = useState<string>("");
 
     const extractRootUrls = () => {
+        if (!input.trim()) {
+            alert("Input is empty. Please enter URLs.");
+            return;
+        }
+    
         const urls = input
-            .split("\n") // Split the input by newlines
-            .map((url) => url.trim()) // Trim whitespace
+            .split("\n") // Split input into lines
+            .map((url) => url.trim()) // Remove leading/trailing spaces
             .filter((url) => url); // Remove empty lines
-
+    
+        console.log("Extracted URLs (Raw):", urls); // Debugging
+    
         const mappings = urls.map((original) => {
             try {
-                const { protocol, hostname } = new URL(original);
-
+                // Add `http://` if no protocol is specified
+                const urlWithProtocol = original.startsWith("http://") || original.startsWith("https://")
+                    ? original
+                    : `http://${original}`;
+    
+                const { hostname } = new URL(urlWithProtocol); // Extract hostname
+                console.log("Parsed Hostname:", hostname); // Debugging
+    
                 if (
                     hostname &&
                     /^[a-zA-Z][a-zA-Z0-9.-]*$/.test(hostname) &&
-                    !hostname.startsWith("xn--") &&
-                    hostname.includes(".")
+                    !hostname.startsWith("xn--") && // Exclude Punycode
+                    hostname.includes(".") // Ensure hostname has a valid domain
                 ) {
-                    const cleaned = `${protocol}//${hostname}`;
-                    return { original, cleaned };
+                    return { original, cleaned: hostname }; // Use hostname only
+                } else {
+                    console.warn("Invalid hostname:", hostname); // Debugging
                 }
-                return null;
-            } catch {
-                return null;
+            } catch (error) {
+                console.error("Failed to parse URL:", original, error); // Debugging
             }
+            return null;
         });
-
+    
         const uniqueMappings = Array.from(
             new Map(
                 mappings
@@ -45,11 +59,16 @@ const SiteCleaner = () => {
                     .map((mapping) => [mapping.cleaned, mapping])
             ).values()
         );
-        
-
-        setUrlMappings(uniqueMappings as { original: string; cleaned: string }[]);
-        setFilteredUrls(uniqueMappings.map((mapping) => mapping.cleaned));
+    
+        console.log("Unique Mappings:", uniqueMappings); // Debugging
+    
+        // Update state with cleaned hostnames
+        setUrlMappings(uniqueMappings); // Set all mappings
+        setFilteredUrls(uniqueMappings.map((mapping) => mapping.cleaned)); // Set only cleaned hostnames
     };
+    
+    
+    
 
     const removeExtensions = () => {
         if (!removeExtensionsInput) {
@@ -98,7 +117,7 @@ const SiteCleaner = () => {
         const currentDate = new Date().toISOString().split("T")[0]; // Format: YYYY-MM-DD
         const filename = `filename_${uuidv4()}_${currentDate}`; // Combine UUID and date
         const status = "unprocessed";
-    
+
         try {
             const response = await fetch("/api/addFilesToDb", {
                 method: "POST",
@@ -111,7 +130,7 @@ const SiteCleaner = () => {
                     status, // "processed" or "unprocessed"
                 }),
             });
-    
+
             if (response.ok) {
                 const result = await response.json();
                 console.log("Data added successfully:", result);
@@ -123,7 +142,7 @@ const SiteCleaner = () => {
             console.error("Error adding data to DB:", error);
         }
     };
-    
+
 
     return (
         <>
@@ -149,7 +168,7 @@ const SiteCleaner = () => {
                                 >
                                     Process Root URLs
                                 </button>
-                               
+
                             </div>
 
                             {/* Filter Section */}
