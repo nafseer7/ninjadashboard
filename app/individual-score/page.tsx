@@ -193,20 +193,25 @@ const IndividualScore = () => {
               const originalUrl = siteQueries[index].originalUrl;
               const cleanedUrl = siteQueries[index].query;
               const type = siteQueries[index].type;
-              const username = siteQueries[index].username;
-              const password = siteQueries[index].password;
+              const username =
+                siteQueries[index].username &&
+                siteQueries[index].username.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
+
+              const password =
+                siteQueries[index].password &&
+                siteQueries[index].password.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
 
               return siteMetrics
                 ? {
-                    originalUrl,
-                    cleanedUrl,
-                    pageAuthority: siteMetrics.page_authority || 0,
-                    domainAuthority: siteMetrics.domain_authority || 0,
-                    spamScore: siteMetrics.spam_score || 0,
-                    type,
-                    username,
-                    password,
-                  }
+                  originalUrl,
+                  cleanedUrl,
+                  pageAuthority: siteMetrics.page_authority || 0,
+                  domainAuthority: siteMetrics.domain_authority || 0,
+                  spamScore: siteMetrics.spam_score || 0,
+                  type,
+                  username,
+                  password,
+                }
                 : null;
             }
           );
@@ -279,9 +284,9 @@ const IndividualScore = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ siteUrl, username, password }),
       });
-  
+
       const data = await response.json();
-  
+
       if (response.ok) {
         // Open the login URL in a new tab
         window.open(data.loginUrl, '_blank');
@@ -355,31 +360,28 @@ const IndividualScore = () => {
               <div className="mb-4 flex items-center space-x-4">
                 <button
                   onClick={() => handleSort("pageAuthority")}
-                  className={`px-4 py-2 rounded ${
-                    sortCriteria === "pageAuthority"
+                  className={`px-4 py-2 rounded ${sortCriteria === "pageAuthority"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-300 text-gray-800"
-                  }`}
+                    }`}
                 >
                   Sort by Page Authority
                 </button>
                 <button
                   onClick={() => handleSort("domainAuthority")}
-                  className={`px-4 py-2 rounded ${
-                    sortCriteria === "domainAuthority"
+                  className={`px-4 py-2 rounded ${sortCriteria === "domainAuthority"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-300 text-gray-800"
-                  }`}
+                    }`}
                 >
                   Sort by Domain Authority
                 </button>
                 <button
                   onClick={() => handleSort("spamScore")}
-                  className={`px-4 py-2 rounded ${
-                    sortCriteria === "spamScore"
+                  className={`px-4 py-2 rounded ${sortCriteria === "spamScore"
                       ? "bg-blue-600 text-white"
                       : "bg-gray-300 text-gray-800"
-                  }`}
+                    }`}
                 >
                   Sort by Spam Score
                 </button>
@@ -443,18 +445,18 @@ const IndividualScore = () => {
                       <td className="border border-gray-300 p-2">
                         {r.type === "WordPress" ? (
                           <button
-                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                          onClick={() => handleAccess(r.originalUrl,r.username || '', r.password || '')}
-                        >
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            onClick={() => handleAccess(r.originalUrl, r.username || '', r.password || '')}
+                          >
                             Access
                           </button>
                         ) : (
                           <button
-                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                          onClick={() => window.open(r.originalUrl, "_blank")}
-                        >
-                          Access
-                        </button>
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            onClick={() => window.open(r.originalUrl, "_blank")}
+                          >
+                            Access
+                          </button>
                         )}
                       </td>
                     </tr>
