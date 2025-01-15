@@ -11,6 +11,8 @@ type Result = {
   domainAuthority: number;
   spamScore: number;
   type: "WordPress" | "Shell" | "Normal Website";
+  username?: string;
+  password?: string;
 };
 
 const IP_REGEX = /^(25[0-5]|2[0-4]\d|[01]?\d?\d)(\.(25[0-5]|2[0-4]\d|[01]?\d?\d)){3}$/;
@@ -29,15 +31,31 @@ const getHostname = (rawUrl: string): string | null => {
     return null;
   }
 };
-const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Normal Website" => {
-  if (/"wordpress_administrator"|"admin"|"modxsecure"/.test(rawUrl)) {
-    return "WordPress";
-  } else if (hostname.includes("shell")) {
-    return "Shell";
+
+const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
+  const parts = rawUrl.split(",");
+  if (parts.length >= 3) {
+    return {
+      username: parts[1]?.trim(),
+      password: parts[2]?.trim(),
+    };
   }
-  return "Normal Website";
+  return {};
 };
 
+const removeDuplicates = (results: Result[]) => {
+  const uniqueResults: Result[] = [];
+  const seenUrls = new Set<string>();
+
+  for (const result of results) {
+    if (!seenUrls.has(result.cleanedUrl)) {
+      uniqueResults.push(result);
+      seenUrls.add(result.cleanedUrl);
+    }
+  }
+
+  return uniqueResults;
+};
 
 const IndividualScore = () => {
   const [url, setUrl] = useState<string>("");
@@ -48,7 +66,6 @@ const IndividualScore = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filteredResults, setFilteredResults] = useState<Result[]>([]);
 
-
   const chunkArray = (array: string[], chunkSize: number) => {
     const chunks = [];
     for (let i = 0; i < array.length; i += chunkSize) {
@@ -58,9 +75,18 @@ const IndividualScore = () => {
   };
 
   const exportToCSV = () => {
-    const csvHeader = ["Original URL", "Cleaned URL", "Page Authority", "Domain Authority", "Spam Score", "Type"].join(",");
+    const csvHeader = ["Original URL", "Cleaned URL", "Page Authority", "Domain Authority", "Spam Score", "Type", "Username", "Password"].join(",");
     const csvRows = results.map((r) =>
-      [r.originalUrl, r.cleanedUrl, r.pageAuthority, r.domainAuthority, r.spamScore, r.type].join(",")
+      [
+        r.originalUrl,
+        r.cleanedUrl,
+        r.pageAuthority,
+        r.domainAuthority,
+        r.spamScore,
+        r.type,
+        r.username || "",
+        r.password || "",
+      ].join(",")
     );
     const csvContent = [csvHeader, ...csvRows].join("\n");
 
@@ -82,35 +108,34 @@ const IndividualScore = () => {
     }
     return "Normal Website";
   };
-  
 
   const handleSearch = async () => {
     if (!url) {
       setError("Please enter at least one valid URL.");
       return;
     }
-  
+
     setLoading(true);
     setError(null);
     setResults([]);
-  
+
     try {
       const urls = url
         .split("\n")
         .map((u) => u.trim())
         .filter((u) => u);
-  
+
       if (urls.length === 0) {
         setError("Please enter at least one valid URL.");
         setLoading(false);
         return;
       }
-  
+
       const filteredUrls = urls.filter((item) => {
         const host = getHostname(item.split(",")[0]); // Extract the URL before the first comma
         return host !== null && !isIpAddress(host);
       });
-  
+
       if (filteredUrls.length === 0) {
         setError(
           "All provided URLs are invalid or IP-based. Please enter domain-based URLs (e.g. ftp.example.com)."
@@ -118,24 +143,26 @@ const IndividualScore = () => {
         setLoading(false);
         return;
       }
-  
+
       const urlChunks = chunkArray(filteredUrls, 30);
       const allResults: Result[] = [];
-  
+
       for (const chunk of urlChunks) {
         const siteQueries = chunk.map((rawUrl) => {
           const originalUrl = rawUrl.split(",")[0]; // Extract original URL
           const cleanedUrl = getHostname(originalUrl) || "";
           const type = classifyUrlType(cleanedUrl, rawUrl);
-  
+          const credentials = type === "WordPress" ? extractCredentials(rawUrl) : {};
+
           return {
             query: cleanedUrl,
             scope: "url",
             originalUrl,
             type,
+            ...credentials,
           };
         });
-  
+
         const response = await fetch("/api/moz", {
           method: "POST",
           headers: {
@@ -152,13 +179,13 @@ const IndividualScore = () => {
             },
           }),
         });
-  
+
         if (!response.ok) {
           throw new Error("Failed to fetch data from the server.");
         }
-  
+
         const data = await response.json();
-  
+
         if (data.result && data.result.results_by_site) {
           const resultsArray = data.result.results_by_site.map(
             (site: any, index: number) => {
@@ -166,7 +193,9 @@ const IndividualScore = () => {
               const originalUrl = siteQueries[index].originalUrl;
               const cleanedUrl = siteQueries[index].query;
               const type = siteQueries[index].type;
-  
+              const username = siteQueries[index].username;
+              const password = siteQueries[index].password;
+
               return siteMetrics
                 ? {
                     originalUrl,
@@ -175,11 +204,13 @@ const IndividualScore = () => {
                     domainAuthority: siteMetrics.domain_authority || 0,
                     spamScore: siteMetrics.spam_score || 0,
                     type,
+                    username,
+                    password,
                   }
                 : null;
             }
           );
-  
+
           const validResults = resultsArray.filter((r: any) => r !== null);
           allResults.push(...(validResults as Result[]));
         } else if (data.error) {
@@ -190,15 +221,18 @@ const IndividualScore = () => {
           break;
         }
       }
-  
+
       if (allResults.length > 0) {
+        // Remove duplicates based on cleanedUrl
+        const uniqueResults = removeDuplicates(allResults);
+
         // Sort results by type to group WordPress, Shell, and Normal Website
-        const sortedResults = allResults.sort((a, b) => {
+        const sortedResults = uniqueResults.sort((a, b) => {
           const typeOrder = { "WordPress": 1, "Shell": 2, "Normal Website": 3 };
           return typeOrder[a.type] - typeOrder[b.type];
         });
         setResults(sortedResults);
-        setFilteredResults(sortedResults); // Save full results for filtering
+        setFilteredResults(sortedResults); // Save filtered results for further use
       } else {
         setError("No metrics found for the provided URLs.");
       }
@@ -208,8 +242,6 @@ const IndividualScore = () => {
       setLoading(false);
     }
   };
-  
-
 
   const handleSort = (criteria: keyof Result) => {
     const sortedResults = [...results].sort((a, b) => {
@@ -229,7 +261,6 @@ const IndividualScore = () => {
 
   type FilterType = "WordPress" | "Shell" | "Normal Website" | "All";
 
-
   const filterByType = (type: FilterType) => {
     if (type === "All") {
       setResults(filteredResults); // Show all results
@@ -238,7 +269,6 @@ const IndividualScore = () => {
       setResults(filtered);
     }
   };
-  
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
@@ -285,28 +315,31 @@ const IndividualScore = () => {
               <div className="mb-4 flex items-center space-x-4">
                 <button
                   onClick={() => handleSort("pageAuthority")}
-                  className={`px-4 py-2 rounded ${sortCriteria === "pageAuthority"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-300 text-gray-800"
-                    }`}
+                  className={`px-4 py-2 rounded ${
+                    sortCriteria === "pageAuthority"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-300 text-gray-800"
+                  }`}
                 >
                   Sort by Page Authority
                 </button>
                 <button
                   onClick={() => handleSort("domainAuthority")}
-                  className={`px-4 py-2 rounded ${sortCriteria === "domainAuthority"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-300 text-gray-800"
-                    }`}
+                  className={`px-4 py-2 rounded ${
+                    sortCriteria === "domainAuthority"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-300 text-gray-800"
+                  }`}
                 >
                   Sort by Domain Authority
                 </button>
                 <button
                   onClick={() => handleSort("spamScore")}
-                  className={`px-4 py-2 rounded ${sortCriteria === "spamScore"
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-300 text-gray-800"
-                    }`}
+                  className={`px-4 py-2 rounded ${
+                    sortCriteria === "spamScore"
+                      ? "bg-blue-600 text-white"
+                      : "bg-gray-300 text-gray-800"
+                  }`}
                 >
                   Sort by Spam Score
                 </button>
@@ -317,29 +350,29 @@ const IndividualScore = () => {
                   Toggle Order: {sortOrder === "asc" ? "Ascending" : "Descending"}
                 </button>
                 <button
-      onClick={() => filterByType("WordPress")}
-      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-    >
-      Only WordPress
-    </button>
-    <button
-      onClick={() => filterByType("Shell")}
-      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ml-2"
-    >
-      Only Shells
-    </button>
-    <button
-      onClick={() => filterByType("Normal Website")}
-      className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ml-2"
-    >
-      Only Normal Websites
-    </button>
-    <button
-      onClick={() => filterByType("All")}
-      className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 ml-2"
-    >
-      Show All
-    </button>
+                  onClick={() => filterByType("WordPress")}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Only WordPress
+                </button>
+                <button
+                  onClick={() => filterByType("Shell")}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ml-2"
+                >
+                  Only Shells
+                </button>
+                <button
+                  onClick={() => filterByType("Normal Website")}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 ml-2"
+                >
+                  Only Normal Websites
+                </button>
+                <button
+                  onClick={() => filterByType("All")}
+                  className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 ml-2"
+                >
+                  Show All
+                </button>
               </div>
 
               <table className="table-auto w-full border border-gray-300">
@@ -351,6 +384,9 @@ const IndividualScore = () => {
                     <th className="border border-gray-300 p-2">Domain Authority</th>
                     <th className="border border-gray-300 p-2">Spam Score</th>
                     <th className="border border-gray-300 p-2">Type</th>
+                    <th className="border border-gray-300 p-2">Username</th>
+                    <th className="border border-gray-300 p-2">Password</th>
+                    <th className="border border-gray-300 p-2">Access</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -362,6 +398,25 @@ const IndividualScore = () => {
                       <td className="border border-gray-300 p-2">{r.domainAuthority}</td>
                       <td className="border border-gray-300 p-2">{r.spamScore}</td>
                       <td className="border border-gray-300 p-2">{r.type}</td>
+                      <td className="border border-gray-300 p-2">{r.username || "N/A"}</td>
+                      <td className="border border-gray-300 p-2">{r.password || "N/A"}</td>
+                      <td className="border border-gray-300 p-2">
+                        {r.type === "WordPress" ? (
+                          <button
+                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                            onClick={() => window.open(r.cleanedUrl, "_blank")}
+                          >
+                            Access
+                          </button>
+                        ) : (
+                          <button
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          onClick={() => window.open(r.originalUrl, "_blank")}
+                        >
+                          Access
+                        </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
