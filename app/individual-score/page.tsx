@@ -270,6 +270,31 @@ const IndividualScore = () => {
     }
   };
 
+
+
+  const handleAccess = async (siteUrl: string, username: string, password: string) => {
+    try {
+      const response = await fetch('/api/login-wordpress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ siteUrl, username, password }),
+      });
+  
+      const data = await response.json();
+  
+      if (response.ok) {
+        // Open the login URL in a new tab
+        window.open(data.loginUrl, '_blank');
+      } else {
+        console.error('Failed to generate login URL:', data.message);
+        alert('Failed to generate login URL. Check the credentials or site URL.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('An unexpected error occurred.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <LeftNavbar />
@@ -403,9 +428,9 @@ const IndividualScore = () => {
                       <td className="border border-gray-300 p-2">
                         {r.type === "WordPress" ? (
                           <button
-                            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            onClick={() => window.open(r.cleanedUrl, "_blank")}
-                          >
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                          onClick={() => handleAccess(r.originalUrl,r.username || '', r.password || '')}
+                        >
                             Access
                           </button>
                         ) : (
