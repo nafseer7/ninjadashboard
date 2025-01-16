@@ -106,11 +106,22 @@ const IndividualScore = () => {
   };
 
   const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Normal Website" => {
-    if (/"wordpress_administrator"|"admin"|"modxsecure"|"xtw18387/.test(rawUrl)) {
+    const parts = rawUrl.split(","); // Split the raw URL by commas
+    const domain = parts[0]?.trim(); // The first part is the domain name
+    const username = parts[1]?.trim(); // The second part is the username
+    const password = parts[2]?.trim(); // The third part is the password
+
+    // Check if it matches the WordPress website pattern
+    if (username && password) {
       return "WordPress";
-    } else if (rawUrl.includes(".php")) {
+    }
+
+    // Check if the URL ends with ".php"
+    if (domain?.endsWith(".php")) {
       return "Shell";
     }
+
+    // If none of the above conditions match, classify as a Normal Website
     return "Normal Website";
   };
 
