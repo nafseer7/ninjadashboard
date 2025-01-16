@@ -60,7 +60,7 @@ const removeDuplicates = (results: Result[]) => {
 const IndividualScore = () => {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [results, setResults] = useState<Result[]>([]);
+  const [results, setResults] = useState<any[]>([]); // Default is an empty array
   const [error, setError] = useState<string | null>(null);
   const [sortCriteria, setSortCriteria] = useState<keyof Result>("pageAuthority");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -68,6 +68,7 @@ const IndividualScore = () => {
   const [showPopup, setShowPopup] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
+  const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
 
 
   const chunkArray = (array: string[], chunkSize: number) => {
@@ -157,7 +158,7 @@ const IndividualScore = () => {
       }
 
       const urlChunks = chunkArray(filteredUrls, 50);
-      const allResults: Result[] = [];
+      const allResults: Result[] = []; // Initialize empty results array
 
       for (const chunk of urlChunks) {
         const siteQueries = chunk.map((rawUrl) => {
@@ -230,25 +231,21 @@ const IndividualScore = () => {
             );
 
             const validResults = resultsArray.filter((r: any) => r !== null);
-            allResults.push(...(validResults as Result[]));
+            allResults.push(...validResults); // Add to results
           } else if (data.error) {
             console.error(`API Error for URLs: ${siteQueries.map((sq) => sq.query).join(", ")}`);
             console.error(`Error message: ${data.error.message}`);
-            // Skip this chunk and continue with the next
-            continue;
+            continue; // Skip problematic chunk
           } else {
             console.error("Unexpected response format from the API.");
-            // Skip this chunk and continue with the next
-            continue;
+            continue; // Skip problematic chunk
           }
         } catch (error) {
           console.error(`Error processing chunk: ${chunk.join(", ")}`);
           console.error(error);
-          // Skip this chunk and continue with the next
-          continue;
+          continue; // Skip problematic chunk
         }
       }
-
 
       if (allResults.length > 0) {
         // Remove duplicates based on cleanedUrl
@@ -259,6 +256,7 @@ const IndividualScore = () => {
           const typeOrder = { "WordPress": 1, "Shell": 2, "Normal Website": 3 };
           return typeOrder[a.type] - typeOrder[b.type];
         });
+
         setResults(sortedResults);
         setFilteredResults(sortedResults); // Save filtered results for further use
       } else {
@@ -329,68 +327,83 @@ const IndividualScore = () => {
   };
 
   const handleProcessWordPress = async () => {
-    setProcessing(true);
-    setProgress(0);
-
     try {
-      const response = await fetch("/api/process-wordpress", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ wordpressUrls: results.filter((r) => r.type === "WordPress") }),
-      });
+      const wordpressUrls = results
+        .filter((r) => r.type === "WordPress")
+        .map((r) => ({
+          url: r.cleanedUrl,
+          username: r.username || "",
+          password: r.password || "",
+        }));
+
+      if (wordpressUrls.length === 0) {
+        alert("No WordPress URLs to process.");
+        return;
+      }
+
+      setProcessing(true);
+      setProgress(0); // Reset progress
+      setShowPopup(true); // Show initial processing popup
+
+      // Simulate progress increment
+      const simulateProgress = setInterval(() => {
+        setProgress((prev) => {
+          const nextValue = prev + 10;
+          return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
+        });
+      }, 500); // Increment progress every 500ms
+
+      const response = await fetch(
+        "https://drab-lauri-ott-92c73c38.koyeb.app/wordpress-process/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ wordpressUrls }),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error("Failed to process WordPress files.");
+        const errorData = await response.json();
+        console.error("Backend Error:", errorData);
+        throw new Error(errorData.detail || "Failed to process WordPress files.");
       }
 
-      const reader = response.body?.getReader();
-      if (reader) {
-        const decoder = new TextDecoder("utf-8");
-        let completed = false;
+      // Clear progress simulation
+      clearInterval(simulateProgress);
 
-        while (!completed) {
-          const { done, value } = await reader.read();
-          if (done) {
-            completed = true;
-          } else {
-            const chunk = decoder.decode(value, { stream: true });
-            const progressUpdate = JSON.parse(chunk);
-            setProgress(progressUpdate.progress || 0);
-          }
-        }
-      }
+      // Set progress to 100% on successful response
+      setProgress(100);
 
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      setResults(data.results); // Update results with the backend response
       setProcessing(false);
+
+      // Transition to "Added Successfully" popup
+      setTimeout(() => {
+        setShowPopup(false); // Close initial popup
+        setTimeout(() => {
+          setShowSuccessPopup(true); // Show "Added Successfully" popup
+          setTimeout(() => {
+            setShowSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
+          }, 5000);
+        }, 500);
+      }, 500);
     } catch (error) {
-      console.error("Error processing WordPress files:", error);
+      console.error("Error:", error);
+      alert("An error occurred while processing WordPress files.");
       setProcessing(false);
     }
   };
 
 
-  const handleAddToDB = async () => {
-    try {
-      const response = await fetch("/api/add-wordpress-to-db", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ wordpressUrls: results.filter((r) => r.type === "WordPress") }),
-      });
 
-      if (response.ok) {
-        alert("WordPress files added to the database successfully.");
-        setShowPopup(false);
-      } else {
-        alert("Failed to add WordPress files to the database.");
-      }
-    } catch (error) {
-      console.error("Error adding WordPress files to DB:", error);
-      alert("An unexpected error occurred.");
-    }
-  };
+
+
+
 
 
 
@@ -427,7 +440,7 @@ const IndividualScore = () => {
           <button
             onClick={exportToCSV}
             className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            disabled={results.length === 0}
+            disabled={results?.length === 0}
           >
             Export to CSV
           </button>
@@ -442,24 +455,24 @@ const IndividualScore = () => {
           <button
             onClick={exportToCSV}
             className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            disabled={results.length === 0}
+            disabled={results?.length === 0}
           >
             Add Shell To DB
           </button>
 
           <div className="mt-6 p-4 bg-gray-100 rounded shadow-md">
-            <p className="text-gray-800 font-semibold">Number of Searched URLs: {results.length}</p>
+            <p className="text-gray-800 font-semibold">Number of Searched URLs: {results?.length}</p>
             <p className="text-gray-800 font-semibold">
-              Number of Duplicated URLs: {results.length - filteredResults.length}
+              Number of Duplicated URLs: {results?.length - filteredResults.length}
             </p>
             <p className="text-gray-800 font-semibold">
-              Number of WordPress URLs: {results.filter((r) => r.type === "WordPress").length}
+              Number of WordPress URLs: {results?.filter((r) => r.type === "WordPress").length}
             </p>
             <p className="text-gray-800 font-semibold">
-              Number of Shell URLs: {results.filter((r) => r.type === "Shell").length}
+              Number of Shell URLs: {results?.filter((r) => r.type === "Shell").length}
             </p>
             <p className="text-gray-800 font-semibold">
-              Number of Normal Website URLs: {results.filter((r) => r.type === "Normal Website").length}
+              Number of Normal Website URLs: {results?.filter((r) => r.type === "Normal Website").length}
             </p>
           </div>
 
@@ -487,19 +500,10 @@ const IndividualScore = () => {
                   </button>
                 )}
 
-                {progress === 100 && !processing && (
-                  <button
-                    onClick={handleAddToDB}
-                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    Add to DB
-                  </button>
-                )}
-
                 <button
                   onClick={() => setShowPopup(false)}
                   className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
-                  style={{ marginLeft: '5px' }}
+                  style={{ marginLeft: "5px" }}
                 >
                   Close
                 </button>
@@ -507,11 +511,19 @@ const IndividualScore = () => {
             </div>
           )}
 
+          {showSuccessPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
+                <p>Your WordPress files have been added to the database successfully.</p>
+              </div>
+            </div>
+          )}
 
 
           {error && <p className="mt-4 text-red-600">{error}</p>}
 
-          {results.length > 0 && (
+          {results?.length > 0 && (
             <div className="mt-6">
               <div className="mb-4 flex items-center space-x-4">
                 <button
@@ -588,7 +600,7 @@ const IndividualScore = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((r, index) => (
+                  {results?.map((r, index) => (
                     <tr key={index}>
                       <td className="border border-gray-300 p-2">{r.originalUrl}</td>
                       <td className="border border-gray-300 p-2">{r.cleanedUrl}</td>
