@@ -241,7 +241,7 @@ const IndividualScore = () => {
               }
             );
 
-            const validResults = resultsArray.filter((r: any) => r !== null);
+            const validResults = resultsArray.filter((r: any) => r !== null && (r.spamScore || 0) <= 10);
             allResults.push(...validResults); // Add to results
           } else if (data.error) {
             console.error(`API Error for URLs: ${siteQueries.map((sq) => sq.query).join(", ")}`);
