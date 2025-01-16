@@ -65,6 +65,10 @@ const IndividualScore = () => {
   const [sortCriteria, setSortCriteria] = useState<keyof Result>("pageAuthority");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filteredResults, setFilteredResults] = useState<Result[]>([]);
+  const [showPopup, setShowPopup] = useState<boolean>(false);
+  const [processing, setProcessing] = useState<boolean>(false);
+  const [progress, setProgress] = useState<number>(0);
+
 
   const chunkArray = (array: string[], chunkSize: number) => {
     const chunks = [];
@@ -131,9 +135,17 @@ const IndividualScore = () => {
         return;
       }
 
-      const filteredUrls = urls.filter((item) => {
+      // Ensure URLs start with http:// or https://
+      const normalizedUrls = urls.map((u) => {
+        if (!/^https?:\/\//i.test(u)) {
+          return `http://${u}`;
+        }
+        return u;
+      });
+
+      const filteredUrls = normalizedUrls.filter((item) => {
         const host = getHostname(item.split(",")[0]); // Extract the URL before the first comma
-        return host !== null && !isIpAddress(host);
+        return host && !isIpAddress(host); // Ensure valid hostname and not an IP address
       });
 
       if (filteredUrls.length === 0) {
@@ -144,7 +156,7 @@ const IndividualScore = () => {
         return;
       }
 
-      const urlChunks = chunkArray(filteredUrls, 30);
+      const urlChunks = chunkArray(filteredUrls, 50);
       const allResults: Result[] = [];
 
       for (const chunk of urlChunks) {
@@ -163,69 +175,80 @@ const IndividualScore = () => {
           };
         });
 
-        const response = await fetch("/api/moz", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            jsonrpc: "2.0",
-            id: "614522f4-29c8-4a75-94c6-8f03bf107903",
-            method: "data.site.metrics.fetch.multiple",
-            params: {
-              data: {
-                site_queries: siteQueries.map((sq) => ({ query: sq.query, scope: sq.scope })),
-              },
+        try {
+          const response = await fetch("/api/moz", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          }),
-        });
+            body: JSON.stringify({
+              jsonrpc: "2.0",
+              id: "614522f4-29c8-4a75-94c6-8f03bf107903",
+              method: "data.site.metrics.fetch.multiple",
+              params: {
+                data: {
+                  site_queries: siteQueries.map((sq) => ({ query: sq.query, scope: sq.scope })),
+                },
+              },
+            }),
+          });
 
-        if (!response.ok) {
-          throw new Error("Failed to fetch data from the server.");
-        }
+          if (!response.ok) {
+            throw new Error("Failed to fetch data from the server.");
+          }
 
-        const data = await response.json();
+          const data = await response.json();
 
-        if (data.result && data.result.results_by_site) {
-          const resultsArray = data.result.results_by_site.map(
-            (site: any, index: number) => {
-              const siteMetrics = site?.site_metrics;
-              const originalUrl = siteQueries[index].originalUrl;
-              const cleanedUrl = siteQueries[index].query;
-              const type = siteQueries[index].type;
-              const username =
-                siteQueries[index].username &&
-                siteQueries[index].username.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
+          if (data.result && data.result.results_by_site) {
+            const resultsArray = data.result.results_by_site.map(
+              (site: any, index: number) => {
+                const siteMetrics = site?.site_metrics;
+                const originalUrl = siteQueries[index].originalUrl;
+                const cleanedUrl = siteQueries[index].query;
+                const type = siteQueries[index].type;
+                const username =
+                  siteQueries[index].username &&
+                  siteQueries[index].username.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
 
-              const password =
-                siteQueries[index].password &&
-                siteQueries[index].password.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
+                const password =
+                  siteQueries[index].password &&
+                  siteQueries[index].password.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
 
-              return siteMetrics
-                ? {
-                  originalUrl,
-                  cleanedUrl,
-                  pageAuthority: siteMetrics.page_authority || 0,
-                  domainAuthority: siteMetrics.domain_authority || 0,
-                  spamScore: siteMetrics.spam_score || 0,
-                  type,
-                  username,
-                  password,
-                }
-                : null;
-            }
-          );
+                return siteMetrics
+                  ? {
+                    originalUrl,
+                    cleanedUrl,
+                    pageAuthority: siteMetrics.page_authority || 0,
+                    domainAuthority: siteMetrics.domain_authority || 0,
+                    spamScore: siteMetrics.spam_score || 0,
+                    type,
+                    username,
+                    password,
+                  }
+                  : null;
+              }
+            );
 
-          const validResults = resultsArray.filter((r: any) => r !== null);
-          allResults.push(...(validResults as Result[]));
-        } else if (data.error) {
-          setError(`API Error: ${data.error.message || "Unknown error"}`);
-          break;
-        } else {
-          setError("Unexpected response format from the API.");
-          break;
+            const validResults = resultsArray.filter((r: any) => r !== null);
+            allResults.push(...(validResults as Result[]));
+          } else if (data.error) {
+            console.error(`API Error for URLs: ${siteQueries.map((sq) => sq.query).join(", ")}`);
+            console.error(`Error message: ${data.error.message}`);
+            // Skip this chunk and continue with the next
+            continue;
+          } else {
+            console.error("Unexpected response format from the API.");
+            // Skip this chunk and continue with the next
+            continue;
+          }
+        } catch (error) {
+          console.error(`Error processing chunk: ${chunk.join(", ")}`);
+          console.error(error);
+          // Skip this chunk and continue with the next
+          continue;
         }
       }
+
 
       if (allResults.length > 0) {
         // Remove duplicates based on cleanedUrl
@@ -242,11 +265,16 @@ const IndividualScore = () => {
         setError("No metrics found for the provided URLs.");
       }
     } catch (error) {
-      setError((error as Error).message);
+      if (error instanceof Error) {
+        setError(error.message || "An unexpected error occurred.");
+      } else {
+        setError("An unexpected error occurred.");
+      }
     } finally {
       setLoading(false);
     }
   };
+
 
   const handleSort = (criteria: keyof Result) => {
     const sortedResults = [...results].sort((a, b) => {
@@ -300,6 +328,72 @@ const IndividualScore = () => {
     }
   };
 
+  const handleProcessWordPress = async () => {
+    setProcessing(true);
+    setProgress(0);
+
+    try {
+      const response = await fetch("/api/process-wordpress", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ wordpressUrls: results.filter((r) => r.type === "WordPress") }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to process WordPress files.");
+      }
+
+      const reader = response.body?.getReader();
+      if (reader) {
+        const decoder = new TextDecoder("utf-8");
+        let completed = false;
+
+        while (!completed) {
+          const { done, value } = await reader.read();
+          if (done) {
+            completed = true;
+          } else {
+            const chunk = decoder.decode(value, { stream: true });
+            const progressUpdate = JSON.parse(chunk);
+            setProgress(progressUpdate.progress || 0);
+          }
+        }
+      }
+
+      setProcessing(false);
+    } catch (error) {
+      console.error("Error processing WordPress files:", error);
+      setProcessing(false);
+    }
+  };
+
+
+  const handleAddToDB = async () => {
+    try {
+      const response = await fetch("/api/add-wordpress-to-db", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ wordpressUrls: results.filter((r) => r.type === "WordPress") }),
+      });
+
+      if (response.ok) {
+        alert("WordPress files added to the database successfully.");
+        setShowPopup(false);
+      } else {
+        alert("Failed to add WordPress files to the database.");
+      }
+    } catch (error) {
+      console.error("Error adding WordPress files to DB:", error);
+      alert("An unexpected error occurred.");
+    }
+  };
+
+
+
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <LeftNavbar />
@@ -339,12 +433,12 @@ const IndividualScore = () => {
           </button>
 
           <button
-            onClick={exportToCSV}
-            className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
-            disabled={results.length === 0}
+            onClick={() => setShowPopup(true)}
+            className="ml-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
           >
-            Add Wordpress To DB
+            Add WordPress To DB
           </button>
+
           <button
             onClick={exportToCSV}
             className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
@@ -352,6 +446,68 @@ const IndividualScore = () => {
           >
             Add Shell To DB
           </button>
+
+          <div className="mt-6 p-4 bg-gray-100 rounded shadow-md">
+            <p className="text-gray-800 font-semibold">Number of Searched URLs: {results.length}</p>
+            <p className="text-gray-800 font-semibold">
+              Number of Duplicated URLs: {results.length - filteredResults.length}
+            </p>
+            <p className="text-gray-800 font-semibold">
+              Number of WordPress URLs: {results.filter((r) => r.type === "WordPress").length}
+            </p>
+            <p className="text-gray-800 font-semibold">
+              Number of Shell URLs: {results.filter((r) => r.type === "Shell").length}
+            </p>
+            <p className="text-gray-800 font-semibold">
+              Number of Normal Website URLs: {results.filter((r) => r.type === "Normal Website").length}
+            </p>
+          </div>
+
+
+          {showPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Process WordPress Files</h2>
+                {processing ? (
+                  <div>
+                    <p>Processing... {progress}%</p>
+                    <div className="w-full bg-gray-200 rounded h-4">
+                      <div
+                        className="bg-blue-600 h-4 rounded"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleProcessWordPress}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
+                  >
+                    Process WordPress Files
+                  </button>
+                )}
+
+                {progress === 100 && !processing && (
+                  <button
+                    onClick={handleAddToDB}
+                    className="mt-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  >
+                    Add to DB
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowPopup(false)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  style={{ marginLeft: '5px' }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+
 
           {error && <p className="mt-4 text-red-600">{error}</p>}
 
@@ -361,8 +517,8 @@ const IndividualScore = () => {
                 <button
                   onClick={() => handleSort("pageAuthority")}
                   className={`px-4 py-2 rounded ${sortCriteria === "pageAuthority"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-300 text-gray-800"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-300 text-gray-800"
                     }`}
                 >
                   Sort by Page Authority
@@ -370,8 +526,8 @@ const IndividualScore = () => {
                 <button
                   onClick={() => handleSort("domainAuthority")}
                   className={`px-4 py-2 rounded ${sortCriteria === "domainAuthority"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-300 text-gray-800"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-300 text-gray-800"
                     }`}
                 >
                   Sort by Domain Authority
@@ -379,8 +535,8 @@ const IndividualScore = () => {
                 <button
                   onClick={() => handleSort("spamScore")}
                   className={`px-4 py-2 rounded ${sortCriteria === "spamScore"
-                      ? "bg-blue-600 text-white"
-                      : "bg-gray-300 text-gray-800"
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-300 text-gray-800"
                     }`}
                 >
                   Sort by Spam Score
