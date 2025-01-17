@@ -66,11 +66,13 @@ const IndividualScore = () => {
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [filteredResults, setFilteredResults] = useState<Result[]>([]);
   const [showPopup, setShowPopup] = useState<boolean>(false);
+  const [showShellPopup, setShowShellPopup] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
-  const [extensionInput, setExtensionInput] = useState<string>(""); 
-  
+  const [showShellSuccessPopup, setShowShellSuccessPopup] = useState<boolean>(false);
+  const [extensionInput, setExtensionInput] = useState<string>("");
+
 
 
 
@@ -299,18 +301,18 @@ const IndividualScore = () => {
     const extensions = extensionInput
       .replace(/\s+/g, ",")
       .replace(/\./g, "")
-      .split(",") 
+      .split(",")
       .map((ext) => ext.trim().toLowerCase())
       .filter((ext) => ext);
-  
+
     const updatedResults = results.filter((result) => {
       const urlExtension = result.cleanedUrl.split('.').pop()?.toLowerCase();
       return !extensions.includes(urlExtension)
     });
-  
+
     setResults(updatedResults);
   };
-  
+
 
 
 
@@ -395,7 +397,8 @@ const IndividualScore = () => {
       }, 500); // Increment progress every 500ms
 
       const response = await fetch(
-        "https://drab-lauri-ott-92c73c38.koyeb.app/wordpress-process/",
+        // "https://drab-lauri-ott-92c73c38.koyeb.app/wordpress-process/",
+        "http://127.0.0.1:8000/wordpress-process/",
         {
           method: "POST",
           headers: {
@@ -441,6 +444,73 @@ const IndividualScore = () => {
   };
 
 
+
+
+  const handleShellProcess = async () => {
+    try {
+      const shellUrls = results
+        .filter((r) => r.type === "Shell") // Filter URLs of type "Shell"
+        .map((r) => r.originalUrl); // Extract cleaned URLs
+
+      if (shellUrls.length === 0) {
+        alert("No Shell URLs to process.");
+        return;
+      }
+
+      setProcessing(true);
+      setProgress(0); // Reset progress
+      setShowShellPopup(true); // Show initial processing popup
+
+      // Simulate progress increment
+      const simulateProgress = setInterval(() => {
+        setProgress((prev) => {
+          const nextValue = prev + 1;
+          return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
+        });
+      }, 500); // Increment progress every 500ms
+
+      const response = await fetch(
+        "https://amazing-tommie-ott-6b7f20ee.koyeb.app/shell-process/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ shellUrls }), // Send shellUrls in the body
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Backend Error:", errorData);
+        throw new Error(errorData.detail || "Failed to process Shell URLs.");
+      }
+
+      clearInterval(simulateProgress);
+
+      setProgress(100);
+
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      setResults(data.results); 
+      setProcessing(false);
+
+      setTimeout(() => {
+        setShowShellPopup(false); 
+        setTimeout(() => {
+          setShowShellSuccessPopup(true); 
+          setTimeout(() => {
+            setShowShellSuccessPopup(false);
+          }, 5000);
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred while processing Shell URLs.");
+      setProcessing(false);
+    }
+  };
 
 
 
@@ -489,12 +559,12 @@ const IndividualScore = () => {
           <button
             onClick={() => setShowPopup(true)}
             className="ml-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-          >
+            >
             Add WordPress To DB
           </button>
 
           <button
-            onClick={exportToCSV}
+            onClick={() => setShowShellPopup(true)}
             className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
             disabled={results?.length === 0}
           >
@@ -570,11 +640,54 @@ const IndividualScore = () => {
             </div>
           )}
 
+          {showShellPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Process Shell Files</h2>
+                {processing ? (
+                  <div>
+                    <p>Processing... {progress}%</p>
+                    <div className="w-full bg-gray-200 rounded h-4">
+                      <div
+                        className="bg-blue-600 h-4 rounded"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleShellProcess}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
+                  >
+                    Process Shell Files
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowShellPopup(false)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  style={{ marginLeft: "5px" }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
           {showSuccessPopup && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
               <div className="bg-white p-6 rounded shadow-md">
                 <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
                 <p>Your WordPress files have been added to the database successfully.</p>
+              </div>
+            </div>
+          )}
+
+          {showShellSuccessPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
+                <p>Your Shell files have been added to the database successfully.</p>
               </div>
             </div>
           )}

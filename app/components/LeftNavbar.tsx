@@ -55,7 +55,7 @@ const LeftNavbar = () => {
         </li>
         <li>
           <Link
-            href="/shell-access"
+            href="/shellfiles"
             className="flex items-center gap-3 text-gray-100 hover:text-blue-400 transition-colors duration-200"
           >
             <svg
