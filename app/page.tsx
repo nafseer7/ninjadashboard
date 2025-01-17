@@ -6,7 +6,6 @@ import LeftNavbar from "./components/LeftNavbar";
 import MainPage from "./components/mainPage";
 import NotificationPanel from "./components/NotificationPanel";
 import { url } from "inspector";
-import ProtectedRoute from "./components/ProtectedRoute";
 
 const Home = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false); // Authentication state

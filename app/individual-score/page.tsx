@@ -389,7 +389,7 @@ const IndividualScore = () => {
       // Simulate progress increment
       const simulateProgress = setInterval(() => {
         setProgress((prev) => {
-          const nextValue = prev + 10;
+          const nextValue = prev + 1;
           return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
         });
       }, 500); // Increment progress every 500ms
