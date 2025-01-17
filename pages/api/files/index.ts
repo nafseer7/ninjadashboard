@@ -23,9 +23,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const db = await connectToDatabase();
     const collection = db.collection(COLLECTION_NAME);
 
-    // Fetch all files from the collection
+    // Fetch all files from the collection, including wordpressUrls
     const files = await collection
-      .find({}, { projection: { filename: 1 } }) // Fetch only `filename` and `_id`
+      .find({}, { projection: { filename: 1, wordpressUrls: 1 } }) // Fetch `filename`, `_id`, and `wordpressUrls`
       .toArray();
 
     res.status(200).json({ files });
