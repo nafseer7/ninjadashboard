@@ -60,7 +60,7 @@ const removeDuplicates = (results: Result[]) => {
 const IndividualScore = () => {
   const [url, setUrl] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [results, setResults] = useState<any[]>([]); // Default is an empty array
+  const [results, setResults] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [sortCriteria, setSortCriteria] = useState<keyof Result>("pageAuthority");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -69,6 +69,10 @@ const IndividualScore = () => {
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
+  const [extensionInput, setExtensionInput] = useState<string>(""); 
+  
+
+
 
 
   const chunkArray = (array: string[], chunkSize: number) => {
@@ -291,6 +295,26 @@ const IndividualScore = () => {
   };
 
 
+  const removeByExtension = (extensionInput: string) => {
+    const extensions = extensionInput
+      .replace(/\s+/g, ",")
+      .replace(/\./g, "")
+      .split(",") 
+      .map((ext) => ext.trim().toLowerCase())
+      .filter((ext) => ext);
+  
+    const updatedResults = results.filter((result) => {
+      const urlExtension = result.cleanedUrl.split('.').pop()?.toLowerCase();
+      return !extensions.includes(urlExtension)
+    });
+  
+    setResults(updatedResults);
+  };
+  
+
+
+
+
   const handleSort = (criteria: keyof Result) => {
     const sortedResults = [...results].sort((a, b) => {
       const aValue = typeof a[criteria] === "number" ? (a[criteria] as number) : 0;
@@ -476,6 +500,24 @@ const IndividualScore = () => {
           >
             Add Shell To DB
           </button>
+
+          <div className="mb-4 pt-3 flex items-center space-x-4">
+            <input
+              type="text"
+              placeholder="Enter extensions to remove (e.g., com, net)"
+              value={extensionInput} // Bind this to state
+              onChange={(e) => setExtensionInput(e.target.value)} // Update state on input
+              className="px-4 py-2 border border-gray-300 rounded w-1/2"
+            />
+            <button
+              onClick={() => removeByExtension(extensionInput)}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+            >
+              Remove Extensions
+            </button>
+          </div>
+
+
 
           <div className="mt-6 p-4 bg-gray-100 rounded shadow-md">
             <p className="text-gray-800 font-semibold">Number of Searched URLs: {results?.length}</p>
