@@ -90,7 +90,7 @@ const Home = () => {
   }
 
   return (
-    <ProtectedRoute>
+    // <ProtectedRoute>
       <div className="min-h-screen bg-gray-100 flex">
         {/* Left Navigation Bar */}
         <LeftNavbar />
@@ -114,7 +114,7 @@ const Home = () => {
           </div>
         </div>
       </div>
-    </ProtectedRoute>
+    // </ProtectedRoute>
   );
 };
 

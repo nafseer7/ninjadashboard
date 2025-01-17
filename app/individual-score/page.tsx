@@ -241,7 +241,13 @@ const IndividualScore = () => {
               }
             );
 
-            const validResults = resultsArray.filter((r: any) => r !== null && (r.spamScore || 0) <= 10);
+            const validResults = resultsArray.filter(
+              (r: any) =>
+                r !== null &&
+                (r.spamScore || 0) <= 10 && // Spam Score must be 10 or less
+                (r.domainAuthority || 0) > 10 && // Domain Authority must be greater than 10
+                (r.pageAuthority || 0) > 10 // Page Authority must be greater than 10
+            );
             allResults.push(...validResults); // Add to results
           } else if (data.error) {
             console.error(`API Error for URLs: ${siteQueries.map((sq) => sq.query).join(", ")}`);
