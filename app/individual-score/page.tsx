@@ -397,8 +397,8 @@ const IndividualScore = () => {
       }, 500); // Increment progress every 500ms
 
       const response = await fetch(
-        // "https://drab-lauri-ott-92c73c38.koyeb.app/wordpress-process/",
-        "http://127.0.0.1:8000/wordpress-process/",
+        "https://drab-lauri-ott-92c73c38.koyeb.app/wordpress-process/",
+        // "http://127.0.0.1:8000/wordpress-process/",
         {
           method: "POST",
           headers: {
