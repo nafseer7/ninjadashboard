@@ -34,12 +34,26 @@ const getHostname = (rawUrl: string): string | null => {
 
 const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
   const parts = rawUrl.split(",");
+  
+  // Case 1: Handling comma-separated format
   if (parts.length >= 3) {
     return {
       username: parts[1]?.trim(),
       password: parts[2]?.trim(),
     };
   }
+
+  // Case 2: Handling format with '#' and '@'
+  const hashIndex = rawUrl.indexOf("#");
+  if (hashIndex !== -1) {
+    const credentialsPart = rawUrl.substring(hashIndex + 1); // Extract part after #
+    const [username, password] = credentialsPart.split("@"); // Split by '@' for username and password
+    return {
+      username: username?.trim(),
+      password: password?.trim(),
+    };
+  }
+
   return {};
 };
 
@@ -114,19 +128,33 @@ const IndividualScore = () => {
   const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Normal Website" => {
     const parts = rawUrl.split(","); // Split the raw URL by commas
     const domain = parts[0]?.trim(); // The first part is the domain name
-    const username = parts[1]?.trim(); // The second part is the username
-    const password = parts[2]?.trim(); // The third part is the password
-
+  
+    // Extract credentials for rawUrl with '#username@password'
+    const hashIndex = rawUrl.indexOf("#");
+    let username: string | undefined;
+    let password: string | undefined;
+  
+    if (hashIndex !== -1) {
+      const credentialsPart = rawUrl.substring(hashIndex + 1); // Extract part after #
+      [username, password] = credentialsPart.split("@"); // Split by '@' for username and password
+      username = username?.trim();
+      password = password?.trim();
+    } else if (parts.length >= 3) {
+      // Fallback to the comma-separated format for username/password
+      username = parts[1]?.trim();
+      password = parts[2]?.trim();
+    }
+  
     // Check if it matches the WordPress website pattern
     if (username && password) {
       return "WordPress";
     }
-
+  
     // Check if the URL ends with ".php"
     if (domain?.endsWith(".php")) {
       return "Shell";
     }
-
+  
     // If none of the above conditions match, classify as a Normal Website
     return "Normal Website";
   };
