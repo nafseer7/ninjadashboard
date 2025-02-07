@@ -81,6 +81,7 @@ const IndividualScore = () => {
   const [filteredResults, setFilteredResults] = useState<Result[]>([]);
   const [showPopup, setShowPopup] = useState<boolean>(false);
   const [showShellPopup, setShowShellPopup] = useState<boolean>(false);
+  const [showJoomlaPopup, setShowJoomlaPoup] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
@@ -125,7 +126,7 @@ const IndividualScore = () => {
     document.body.removeChild(link);
   };
 
-  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Normal Website" => {
+  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Normal Website" => {
     const parts = rawUrl.split(","); // Split the raw URL by commas
     const domain = parts[0]?.trim(); // The first part is the domain name
 
@@ -144,6 +145,11 @@ const IndividualScore = () => {
       username = parts[1]?.trim();
       password = parts[2]?.trim();
     }
+
+    if (domain?.includes("/administrator/index.php")) {
+      return "Joomla";
+    }
+
 
     // Check if it matches the WordPress website pattern
     if (username && password) {
@@ -164,23 +170,23 @@ const IndividualScore = () => {
       setError("Please enter at least one valid URL.");
       return;
     }
-
+  
     setLoading(true);
     setError(null);
     setResults([]);
-
+  
     try {
       const urls = url
         .split("\n")
         .map((u) => u.trim())
         .filter((u) => u);
-
+  
       if (urls.length === 0) {
         setError("Please enter at least one valid URL.");
         setLoading(false);
         return;
       }
-
+  
       // Ensure URLs start with http:// or https://
       const normalizedUrls = urls.map((u) => {
         if (!/^https?:\/\//i.test(u)) {
@@ -188,30 +194,28 @@ const IndividualScore = () => {
         }
         return u;
       });
-
+  
       const filteredUrls = normalizedUrls.filter((item) => {
         const host = getHostname(item.split(",")[0]); // Extract the URL before the first comma
         return host && !isIpAddress(host); // Ensure valid hostname and not an IP address
       });
-
+  
       if (filteredUrls.length === 0) {
-        setError(
-          "All provided URLs are invalid or IP-based. Please enter domain-based URLs (e.g. ftp.example.com)."
-        );
+        setError("All provided URLs are invalid or IP-based. Please enter domain-based URLs.");
         setLoading(false);
         return;
       }
-
+  
       const urlChunks = chunkArray(filteredUrls, 50);
       const allResults: Result[] = []; // Initialize empty results array
-
+  
       for (const chunk of urlChunks) {
         const siteQueries = chunk.map((rawUrl) => {
           const originalUrl = rawUrl.split(",")[0]; // Extract original URL
           const cleanedUrl = getHostname(originalUrl) || "";
           const type = classifyUrlType(cleanedUrl, rawUrl);
-          const credentials = type === "WordPress" ? extractCredentials(rawUrl) : {};
-
+          const credentials = (type === "WordPress" || type === "Joomla") ? extractCredentials(rawUrl) : {};
+  
           return {
             query: cleanedUrl,
             scope: "url",
@@ -220,7 +224,7 @@ const IndividualScore = () => {
             ...credentials,
           };
         });
-
+  
         try {
           const response = await fetch("/api/moz", {
             method: "POST",
@@ -238,13 +242,13 @@ const IndividualScore = () => {
               },
             }),
           });
-
+  
           if (!response.ok) {
             throw new Error("Failed to fetch data from the server.");
           }
-
+  
           const data = await response.json();
-
+  
           if (data.result && data.result.results_by_site) {
             const resultsArray = data.result.results_by_site.map(
               (site: any, index: number) => {
@@ -255,26 +259,26 @@ const IndividualScore = () => {
                 const username =
                   siteQueries[index].username &&
                   siteQueries[index].username.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
-
+  
                 const password =
                   siteQueries[index].password &&
                   siteQueries[index].password.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
-
+  
                 return siteMetrics
                   ? {
-                    originalUrl,
-                    cleanedUrl,
-                    pageAuthority: siteMetrics.page_authority || 0,
-                    domainAuthority: siteMetrics.domain_authority || 0,
-                    spamScore: siteMetrics.spam_score || 0,
-                    type,
-                    username,
-                    password,
-                  }
+                      originalUrl,
+                      cleanedUrl,
+                      pageAuthority: siteMetrics.page_authority || 0,
+                      domainAuthority: siteMetrics.domain_authority || 0,
+                      spamScore: siteMetrics.spam_score || 0,
+                      type,
+                      username,
+                      password,
+                    }
                   : null;
               }
             );
-
+  
             const validResults = resultsArray.filter(
               (r: any) =>
                 r !== null &&
@@ -297,17 +301,17 @@ const IndividualScore = () => {
           continue; // Skip problematic chunk
         }
       }
-
+  
       if (allResults.length > 0) {
         // Remove duplicates based on cleanedUrl
         const uniqueResults = removeDuplicates(allResults);
-
-        // Sort results by type to group WordPress, Shell, and Normal Website
+  
+        // Sort results by type to group Joomla, WordPress, Shell, and Normal Website
         const sortedResults = uniqueResults.sort((a, b) => {
-          const typeOrder = { "WordPress": 1, "Shell": 2, "Normal Website": 3 };
+          const typeOrder = { "WordPress": 1, "Joomla": 2, "Shell": 3, "Normal Website": 4 };
           return typeOrder[a.type] - typeOrder[b.type];
         });
-
+  
         setResults(sortedResults);
         setFilteredResults(sortedResults); // Save filtered results for further use
       } else {
@@ -323,6 +327,7 @@ const IndividualScore = () => {
       setLoading(false);
     }
   };
+  
 
 
   const removeByExtension = (extensionInput: string) => {
@@ -366,7 +371,7 @@ const IndividualScore = () => {
     handleSort(sortCriteria);
   };
 
-  type FilterType = "WordPress" | "Shell" | "Normal Website" | "All";
+  type FilterType = "WordPress" | "Joomla" | "Shell" | "Normal Website" | "All";
 
   const filterByType = (type: FilterType) => {
     if (type === "All") {
@@ -476,6 +481,80 @@ const IndividualScore = () => {
     }
   };
 
+  const handleJoomlaProcess = async () => {
+    try {
+      const joomlaUrls = results
+        .filter((r) => r.type === "Joomla")
+        .map((r) => ({
+          url: r.cleanedUrl,
+          username: r.username || "",
+          password: r.password || "",
+        }));
+
+      if (joomlaUrls.length === 0) {
+        alert("No Joomla URLs to process.");
+        return;
+      }
+
+      setProcessing(true);
+      setProgress(0); // Reset progress
+      setShowPopup(true); // Show initial processing popup
+
+      // Simulate progress increment
+      const simulateProgress = setInterval(() => {
+        setProgress((prev) => {
+          const nextValue = prev + 1;
+          return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
+        });
+      }, 500); // Increment progress every 500ms
+
+      const response = await fetch(
+        "https://angry-kathlin-ott-f28b57e0.koyeb.app/joomla-process/",
+        // "http://127.0.0.1:8000/wordpress-process/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ joomlaUrls }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Backend Error:", errorData);
+        throw new Error(errorData.detail || "Failed to process Joomla files.");
+      }
+
+      // Clear progress simulation
+      clearInterval(simulateProgress);
+
+      // Set progress to 100% on successful response
+      setProgress(100);
+
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      setResults(data.results); // Update results with the backend response
+      setProcessing(false);
+
+      // Transition to "Added Successfully" popup
+      setTimeout(() => {
+        setShowPopup(false); // Close initial popup
+        setTimeout(() => {
+          setShowSuccessPopup(true); // Show "Added Successfully" popup
+          setTimeout(() => {
+            setShowSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
+          }, 5000);
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred while processing Joomla files.");
+      setProcessing(false);
+    }
+  };
+
 
 
 
@@ -549,7 +628,7 @@ const IndividualScore = () => {
   const removeResult = (indexToRemove: number) => {
     setResults((prevResults) => prevResults.filter((_, index) => index !== indexToRemove));
   };
-  
+
 
 
 
@@ -605,6 +684,13 @@ const IndividualScore = () => {
             disabled={results?.length === 0}
           >
             Add Shell To DB
+          </button>
+          <button
+            onClick={() => setShowJoomlaPoup(true)}
+            className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            disabled={results?.length === 0}
+          >
+            Add Joomla To DB
           </button>
 
           <div className="mb-4 pt-3 flex items-center space-x-4">
@@ -696,6 +782,40 @@ const IndividualScore = () => {
                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
                   >
                     Process Shell Files
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowShellPopup(false)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  style={{ marginLeft: "5px" }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showJoomlaPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Process Joomla Files</h2>
+                {processing ? (
+                  <div>
+                    <p>Processing... {progress}%</p>
+                    <div className="w-full bg-gray-200 rounded h-4">
+                      <div
+                        className="bg-blue-600 h-4 rounded"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleJoomlaProcess}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
+                  >
+                    Process Joomla Files
                   </button>
                 )}
 
