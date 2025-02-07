@@ -34,7 +34,7 @@ const getHostname = (rawUrl: string): string | null => {
 
 const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
   const parts = rawUrl.split(",");
-  
+
   // Case 1: Handling comma-separated format
   if (parts.length >= 3) {
     return {
@@ -128,12 +128,12 @@ const IndividualScore = () => {
   const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Normal Website" => {
     const parts = rawUrl.split(","); // Split the raw URL by commas
     const domain = parts[0]?.trim(); // The first part is the domain name
-  
+
     // Extract credentials for rawUrl with '#username@password'
     const hashIndex = rawUrl.indexOf("#");
     let username: string | undefined;
     let password: string | undefined;
-  
+
     if (hashIndex !== -1) {
       const credentialsPart = rawUrl.substring(hashIndex + 1); // Extract part after #
       [username, password] = credentialsPart.split("@"); // Split by '@' for username and password
@@ -144,17 +144,17 @@ const IndividualScore = () => {
       username = parts[1]?.trim();
       password = parts[2]?.trim();
     }
-  
+
     // Check if it matches the WordPress website pattern
     if (username && password) {
       return "WordPress";
     }
-  
+
     // Check if the URL ends with ".php"
     if (domain?.endsWith(".php")) {
       return "Shell";
     }
-  
+
     // If none of the above conditions match, classify as a Normal Website
     return "Normal Website";
   };
@@ -326,20 +326,25 @@ const IndividualScore = () => {
 
 
   const removeByExtension = (extensionInput: string) => {
-    const extensions = extensionInput
+    const inputs = extensionInput
       .replace(/\s+/g, ",")
-      .replace(/\./g, "")
+      .replace(/\./g, ".") // Keep dots for domain checking
       .split(",")
-      .map((ext) => ext.trim().toLowerCase())
-      .filter((ext) => ext);
+      .map((input) => input.trim().toLowerCase())
+      .filter((input) => input);
 
     const updatedResults = results.filter((result) => {
       const urlExtension = result.cleanedUrl.split('.').pop()?.toLowerCase();
-      return !extensions.includes(urlExtension)
+
+      // Check if the extension or domain is in the input list
+      return !inputs.some((input) =>
+        urlExtension === input || result.cleanedUrl.toLowerCase().includes(input)
+      );
     });
 
     setResults(updatedResults);
   };
+
 
 
 
@@ -521,13 +526,13 @@ const IndividualScore = () => {
       const data = await response.json();
       console.log("Backend response:", data);
 
-      setResults(data.results); 
+      setResults(data.results);
       setProcessing(false);
 
       setTimeout(() => {
-        setShowShellPopup(false); 
+        setShowShellPopup(false);
         setTimeout(() => {
-          setShowShellSuccessPopup(true); 
+          setShowShellSuccessPopup(true);
           setTimeout(() => {
             setShowShellSuccessPopup(false);
           }, 5000);
@@ -541,7 +546,10 @@ const IndividualScore = () => {
   };
 
 
-
+  const removeResult = (indexToRemove: number) => {
+    setResults((prevResults) => prevResults.filter((_, index) => index !== indexToRemove));
+  };
+  
 
 
 
@@ -587,7 +595,7 @@ const IndividualScore = () => {
           <button
             onClick={() => setShowPopup(true)}
             className="ml-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
+          >
             Add WordPress To DB
           </button>
 
@@ -797,6 +805,7 @@ const IndividualScore = () => {
                     <th className="border border-gray-300 p-2">Username</th>
                     <th className="border border-gray-300 p-2">Password</th>
                     <th className="border border-gray-300 p-2">Access</th>
+                    <th className="border border-gray-300 p-2">Remove</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -827,10 +836,19 @@ const IndividualScore = () => {
                           </button>
                         )}
                       </td>
+                      <td className="border border-gray-300 p-2">
+                        <button
+                          className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+                          onClick={() => removeResult(index)}
+                        >
+                          Remove
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
             </div>
           )}
         </div>
