@@ -282,7 +282,7 @@ const IndividualScore = () => {
             const validResults = resultsArray.filter(
               (r: any) =>
                 r !== null &&
-                (r.spamScore || 0) <= 10 && // Spam Score must be 10 or less
+                (r.spamScore || 0) <= 30 && // Spam Score must be 10 or less
                 (r.domainAuthority || 0) > 10 && // Domain Authority must be greater than 10
                 (r.pageAuthority || 0) > 10 // Page Authority must be greater than 10
             );
@@ -510,7 +510,7 @@ const IndividualScore = () => {
 
       const response = await fetch(
         "https://angry-kathlin-ott-f28b57e0.koyeb.app/joomla-process/",
-        // "http://127.0.0.1:8000/wordpress-process/",
+        // "http://127.0.0.1:8000/joomla-process/",
         {
           method: "POST",
           headers: {
