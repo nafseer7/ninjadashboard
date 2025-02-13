@@ -86,6 +86,7 @@ const IndividualScore = () => {
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
   const [showShellSuccessPopup, setShowShellSuccessPopup] = useState<boolean>(false);
+  const [showJoomlaSuccessPopup, setShowJoomlaSuccessPopup] = useState<boolean>(false);
   const [extensionInput, setExtensionInput] = useState<string>("");
 
 
@@ -509,7 +510,7 @@ const IndividualScore = () => {
       }, 500); // Increment progress every 500ms
 
       const response = await fetch(
-        "https://angry-kathlin-ott-f28b57e0.koyeb.app/joomla-process/",
+        "http://172.81.132.157:7350/joomla-process/",
         // "http://127.0.0.1:8000/joomla-process/",
         {
           method: "POST",
@@ -542,9 +543,9 @@ const IndividualScore = () => {
       setTimeout(() => {
         setShowPopup(false); // Close initial popup
         setTimeout(() => {
-          setShowSuccessPopup(true); // Show "Added Successfully" popup
+          setShowJoomlaSuccessPopup(true); // Show "Added Successfully" popup
           setTimeout(() => {
-            setShowSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
+            setShowJoomlaSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
           }, 5000);
         }, 500);
       }, 500);
@@ -844,6 +845,15 @@ const IndividualScore = () => {
               <div className="bg-white p-6 rounded shadow-md">
                 <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
                 <p>Your Shell files have been added to the database successfully.</p>
+              </div>
+            </div>
+          )}
+
+          {showJoomlaSuccessPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
+                <p>Your Joomla files have been added to the database successfully.</p>
               </div>
             </div>
           )}
