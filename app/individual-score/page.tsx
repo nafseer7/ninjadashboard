@@ -10,7 +10,7 @@ type Result = {
   pageAuthority: number;
   domainAuthority: number;
   spamScore: number;
-  type: "WordPress" | "Shell" | "Normal Website";
+  type: "WordPress" | "Shell" | "Joomla" | "Plesk" | "Normal Website";
   username?: string;
   password?: string;
 };
@@ -33,6 +33,11 @@ const getHostname = (rawUrl: string): string | null => {
 };
 
 const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
+  if (rawUrl.startsWith("plesk:")) {
+    const parts = rawUrl.split("|");
+    return parts.length === 3 ? { username: parts[1].trim(), password: parts[2].trim() } : {};
+  }
+
   const parts = rawUrl.split(",");
 
   // Case 1: Handling comma-separated format
@@ -82,11 +87,13 @@ const IndividualScore = () => {
   const [showPopup, setShowPopup] = useState<boolean>(false);
   const [showShellPopup, setShowShellPopup] = useState<boolean>(false);
   const [showJoomlaPopup, setShowJoomlaPoup] = useState<boolean>(false);
+  const [showPleskPopup, setShowPleskPopup] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
   const [showShellSuccessPopup, setShowShellSuccessPopup] = useState<boolean>(false);
   const [showJoomlaSuccessPopup, setShowJoomlaSuccessPopup] = useState<boolean>(false);
+  const [showPleskSuccessPopup, setShowPleskSuccessPopup] = useState<boolean>(false);
   const [extensionInput, setExtensionInput] = useState<string>("");
 
 
@@ -127,7 +134,9 @@ const IndividualScore = () => {
     document.body.removeChild(link);
   };
 
-  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Normal Website" => {
+  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Plesk" | "Normal Website" => {
+    if (rawUrl.startsWith("plesk:")) return "Plesk";
+
     const parts = rawUrl.split(","); // Split the raw URL by commas
     const domain = parts[0]?.trim(); // The first part is the domain name
 
@@ -150,6 +159,7 @@ const IndividualScore = () => {
     if (domain?.includes("/administrator/index.php")) {
       return "Joomla";
     }
+
 
 
     // Check if it matches the WordPress website pattern
@@ -190,7 +200,7 @@ const IndividualScore = () => {
   
       // Ensure URLs start with http:// or https://
       const normalizedUrls = urls.map((u) => {
-        if (!/^https?:\/\//i.test(u)) {
+        if (!/^https?:\/\//i.test(u) && !u.toLowerCase().startsWith("plesk:")) {
           return `http://${u}`;
         }
         return u;
@@ -212,10 +222,12 @@ const IndividualScore = () => {
   
       for (const chunk of urlChunks) {
         const siteQueries = chunk.map((rawUrl) => {
-          const originalUrl = rawUrl.split(",")[0]; // Extract original URL
+          const isPlesk = rawUrl.toLowerCase().startsWith("plesk:");
+          const originalUrl = isPlesk ? rawUrl.split("|")[0].replace("plesk:", "").trim() : rawUrl.split(",")[0];
+  
           const cleanedUrl = getHostname(originalUrl) || "";
           const type = classifyUrlType(cleanedUrl, rawUrl);
-          const credentials = (type === "WordPress" || type === "Joomla") ? extractCredentials(rawUrl) : {};
+          const credentials = (type === "WordPress" || type === "Joomla" || type === "Plesk") ? extractCredentials(rawUrl) : {};
   
           return {
             query: cleanedUrl,
@@ -257,13 +269,8 @@ const IndividualScore = () => {
                 const originalUrl = siteQueries[index].originalUrl;
                 const cleanedUrl = siteQueries[index].query;
                 const type = siteQueries[index].type;
-                const username =
-                  siteQueries[index].username &&
-                  siteQueries[index].username.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
-  
-                const password =
-                  siteQueries[index].password &&
-                  siteQueries[index].password.replace(/^"|"$/g, ""); // Remove leading and trailing quotes
+                const username = siteQueries[index].username;
+                const password = siteQueries[index].password;
   
                 return siteMetrics
                   ? {
@@ -307,9 +314,9 @@ const IndividualScore = () => {
         // Remove duplicates based on cleanedUrl
         const uniqueResults = removeDuplicates(allResults);
   
-        // Sort results by type to group Joomla, WordPress, Shell, and Normal Website
+        // Sort results by type to group Joomla, WordPress, Shell, Plesk, and Normal Website
         const sortedResults = uniqueResults.sort((a, b) => {
-          const typeOrder = { "WordPress": 1, "Joomla": 2, "Shell": 3, "Normal Website": 4 };
+          const typeOrder = { "WordPress": 1, "Shell": 2, "Joomla": 3, "Plesk": 4, "Normal Website": 5 };
           return typeOrder[a.type] - typeOrder[b.type];
         });
   
@@ -328,6 +335,7 @@ const IndividualScore = () => {
       setLoading(false);
     }
   };
+  
   
 
 
@@ -556,6 +564,80 @@ const IndividualScore = () => {
     }
   };
 
+  const handlePleskProcess = async () => {
+    try {
+      const joomlaUrls = results
+        .filter((r) => r.type === "Plesk")
+        .map((r) => ({
+          url: r.cleanedUrl,
+          username: r.username || "",
+          password: r.password || "",
+        }));
+
+      if (joomlaUrls.length === 0) {
+        alert("No Plesk URLs to process.");
+        return;
+      }
+
+      setProcessing(true);
+      setProgress(0); // Reset progress
+      setShowPopup(true); // Show initial processing popup
+
+      // Simulate progress increment
+      const simulateProgress = setInterval(() => {
+        setProgress((prev) => {
+          const nextValue = prev + 1;
+          return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
+        });
+      }, 500); // Increment progress every 500ms
+
+      const response = await fetch(
+        "http://172.81.132.157:7350/plesk-process/",
+        // "http://127.0.0.1:8000/joomla-process/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ joomlaUrls }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Backend Error:", errorData);
+        throw new Error(errorData.detail || "Failed to process Plesk files.");
+      }
+
+      // Clear progress simulation
+      clearInterval(simulateProgress);
+
+      // Set progress to 100% on successful response
+      setProgress(100);
+
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      setResults(data.results); // Update results with the backend response
+      setProcessing(false);
+
+      // Transition to "Added Successfully" popup
+      setTimeout(() => {
+        setShowPopup(false); // Close initial popup
+        setTimeout(() => {
+          setShowPleskSuccessPopup(true); // Show "Added Successfully" popup
+          setTimeout(() => {
+            setShowPleskSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
+          }, 5000);
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred while processing Joomla files.");
+      setProcessing(false);
+    }
+  };
+
 
 
 
@@ -688,10 +770,17 @@ const IndividualScore = () => {
           </button>
           <button
             onClick={() => setShowJoomlaPoup(true)}
-            className="ml-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+            className="ml-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-green-700"
             disabled={results?.length === 0}
           >
             Add Joomla To DB
+          </button>
+          <button
+            onClick={() => setShowPleskPopup(true)}
+            className="ml-4 px-4 py-2 bg-orange-600 text-white rounded hover:bg-green-700"
+            disabled={results?.length === 0}
+          >
+            Add Plesk To DB
           </button>
 
           <div className="mb-4 pt-3 flex items-center space-x-4">
@@ -821,7 +910,41 @@ const IndividualScore = () => {
                 )}
 
                 <button
-                  onClick={() => setShowShellPopup(false)}
+                  onClick={() => setShowJoomlaPoup(false)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  style={{ marginLeft: "5px" }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showPleskPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Process Plesk Files</h2>
+                {processing ? (
+                  <div>
+                    <p>Processing... {progress}%</p>
+                    <div className="w-full bg-gray-200 rounded h-4">
+                      <div
+                        className="bg-blue-600 h-4 rounded"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handlePleskProcess}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
+                  >
+                    Process Joomla Files
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowPleskPopup(false)}
                   className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                   style={{ marginLeft: "5px" }}
                 >
@@ -854,6 +977,15 @@ const IndividualScore = () => {
               <div className="bg-white p-6 rounded shadow-md">
                 <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
                 <p>Your Joomla files have been added to the database successfully.</p>
+              </div>
+            </div>
+          )}
+
+          {showPleskSuccessPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
+                <p>Your Plesk files have been added to the database successfully.</p>
               </div>
             </div>
           )}

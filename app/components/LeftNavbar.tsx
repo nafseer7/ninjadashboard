@@ -99,6 +99,28 @@ const LeftNavbar = () => {
         </li>
         <li>
           <Link
+            href="/pleskfiles"
+            className="flex items-center gap-3 text-gray-100 hover:text-blue-400 transition-colors duration-200"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 17l6-6-6-6m10 12h6"
+              />
+            </svg>
+            <span className="font-medium">Plesk Access</span>
+          </Link>
+        </li>
+        <li>
+          <Link
             href="/individual-score"
             className="flex items-center gap-3 text-gray-100 hover:text-blue-400 transition-colors duration-200"
           >
@@ -161,6 +183,28 @@ const LeftNavbar = () => {
               />
             </svg>
             <span className="font-medium">Wordpress Site Cleaner</span>
+          </Link>
+        </li>
+        <li>
+          <Link
+            href="/plesk-cleaner"
+            className="flex items-center gap-3 text-gray-100 hover:text-blue-400 transition-colors duration-200"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4 17l6-6-6-6m10 12h6"
+              />
+            </svg>
+            <span className="font-medium">Plesk Site Cleaner</span>
           </Link>
         </li>
         
