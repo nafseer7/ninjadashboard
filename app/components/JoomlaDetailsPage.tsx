@@ -94,7 +94,7 @@ const JoomlaDetailsPage = ({ fileId }: { fileId: string }) => {
 
     const handleAccess = async (siteUrl: string, username: string, password: string) => {
         try {
-            const response = await fetch("/api/login-wordpress", {
+            const response = await fetch("/api/login-joomla", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ siteUrl, username, password }),
