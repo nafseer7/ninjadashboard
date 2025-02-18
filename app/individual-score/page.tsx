@@ -33,7 +33,7 @@ const getHostname = (rawUrl: string): string | null => {
 };
 
 const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
-  if (rawUrl.startsWith("plesk:")) {
+  if (rawUrl.startsWith("plesk:") || rawUrl.startsWith("directadmin:")) {
     const parts = rawUrl.split("|");
     return parts.length === 3 ? { username: parts[1].trim(), password: parts[2].trim() } : {};
   }
@@ -88,12 +88,14 @@ const IndividualScore = () => {
   const [showShellPopup, setShowShellPopup] = useState<boolean>(false);
   const [showJoomlaPopup, setShowJoomlaPoup] = useState<boolean>(false);
   const [showPleskPopup, setShowPleskPopup] = useState<boolean>(false);
+  const [showDirectAdminPopup, setShowDirectAdminPopup] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
   const [showShellSuccessPopup, setShowShellSuccessPopup] = useState<boolean>(false);
   const [showJoomlaSuccessPopup, setShowJoomlaSuccessPopup] = useState<boolean>(false);
   const [showPleskSuccessPopup, setShowPleskSuccessPopup] = useState<boolean>(false);
+  const [showDirectAdminSuccessPopup, setshowDirectAdminSuccessPopup] = useState<boolean>(false);
   const [extensionInput, setExtensionInput] = useState<string>("");
 
 
@@ -134,8 +136,9 @@ const IndividualScore = () => {
     document.body.removeChild(link);
   };
 
-  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Plesk" | "Normal Website" => {
+  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Plesk" | "DirectAdmin" | "Normal Website" => {
     if (rawUrl.startsWith("plesk:")) return "Plesk";
+    if (rawUrl.startsWith("directadmin:")) return "DirectAdmin";
 
     const parts = rawUrl.split(","); // Split the raw URL by commas
     const domain = parts[0]?.trim(); // The first part is the domain name
@@ -181,54 +184,63 @@ const IndividualScore = () => {
       setError("Please enter at least one valid URL.");
       return;
     }
-  
+
     setLoading(true);
     setError(null);
     setResults([]);
-  
+
     try {
       const urls = url
         .split("\n")
         .map((u) => u.trim())
         .filter((u) => u);
-  
+
       if (urls.length === 0) {
         setError("Please enter at least one valid URL.");
         setLoading(false);
         return;
       }
-  
+
       // Ensure URLs start with http:// or https://
       const normalizedUrls = urls.map((u) => {
-        if (!/^https?:\/\//i.test(u) && !u.toLowerCase().startsWith("plesk:")) {
+        if (!/^https?:\/\//i.test(u) && !u.toLowerCase().startsWith("plesk:") && !u.toLowerCase().startsWith("directadmin:")) {
           return `http://${u}`;
         }
         return u;
       });
-  
+
+
+
       const filteredUrls = normalizedUrls.filter((item) => {
         const host = getHostname(item.split(",")[0]); // Extract the URL before the first comma
         return host && !isIpAddress(host); // Ensure valid hostname and not an IP address
       });
-  
+
       if (filteredUrls.length === 0) {
         setError("All provided URLs are invalid or IP-based. Please enter domain-based URLs.");
         setLoading(false);
         return;
       }
-  
+
       const urlChunks = chunkArray(filteredUrls, 50);
       const allResults: Result[] = []; // Initialize empty results array
-  
+
       for (const chunk of urlChunks) {
         const siteQueries = chunk.map((rawUrl) => {
           const isPlesk = rawUrl.toLowerCase().startsWith("plesk:");
-          const originalUrl = isPlesk ? rawUrl.split("|")[0].replace("plesk:", "").trim() : rawUrl.split(",")[0];
-  
+          const isDirectAdmin = rawUrl.toLowerCase().startsWith("directadmin:");
+
+          const originalUrl = isPlesk
+            ? rawUrl.split("|")[0].replace("plesk:", "").trim()
+            : isDirectAdmin
+              ? rawUrl.split("|")[0].replace("directadmin:", "").trim()
+              : rawUrl.split(",")[0];
+
+
           const cleanedUrl = getHostname(originalUrl) || "";
           const type = classifyUrlType(cleanedUrl, rawUrl);
-          const credentials = (type === "WordPress" || type === "Joomla" || type === "Plesk") ? extractCredentials(rawUrl) : {};
-  
+          const credentials = (type === "WordPress" || type === "Joomla" || type === "Plesk" || type === "DirectAdmin") ? extractCredentials(rawUrl) : {};
+
           return {
             query: cleanedUrl,
             scope: "url",
@@ -237,7 +249,7 @@ const IndividualScore = () => {
             ...credentials,
           };
         });
-  
+
         try {
           const response = await fetch("/api/moz", {
             method: "POST",
@@ -255,13 +267,13 @@ const IndividualScore = () => {
               },
             }),
           });
-  
+
           if (!response.ok) {
             throw new Error("Failed to fetch data from the server.");
           }
-  
+
           const data = await response.json();
-  
+
           if (data.result && data.result.results_by_site) {
             const resultsArray = data.result.results_by_site.map(
               (site: any, index: number) => {
@@ -271,22 +283,22 @@ const IndividualScore = () => {
                 const type = siteQueries[index].type;
                 const username = siteQueries[index].username;
                 const password = siteQueries[index].password;
-  
+
                 return siteMetrics
                   ? {
-                      originalUrl,
-                      cleanedUrl,
-                      pageAuthority: siteMetrics.page_authority || 0,
-                      domainAuthority: siteMetrics.domain_authority || 0,
-                      spamScore: siteMetrics.spam_score || 0,
-                      type,
-                      username,
-                      password,
-                    }
+                    originalUrl,
+                    cleanedUrl,
+                    pageAuthority: siteMetrics.page_authority || 0,
+                    domainAuthority: siteMetrics.domain_authority || 0,
+                    spamScore: siteMetrics.spam_score || 0,
+                    type,
+                    username,
+                    password,
+                  }
                   : null;
               }
             );
-  
+
             const validResults = resultsArray.filter(
               (r: any) =>
                 r !== null &&
@@ -309,17 +321,17 @@ const IndividualScore = () => {
           continue; // Skip problematic chunk
         }
       }
-  
+
       if (allResults.length > 0) {
         // Remove duplicates based on cleanedUrl
         const uniqueResults = removeDuplicates(allResults);
-  
+
         // Sort results by type to group Joomla, WordPress, Shell, Plesk, and Normal Website
         const sortedResults = uniqueResults.sort((a, b) => {
-          const typeOrder = { "WordPress": 1, "Shell": 2, "Joomla": 3, "Plesk": 4, "Normal Website": 5 };
+          const typeOrder = { "WordPress": 1, "Shell": 2, "Joomla": 3, "Plesk": 4, "DirectAdmin": 5, "Normal Website": 6 };
           return typeOrder[a.type] - typeOrder[b.type];
         });
-  
+
         setResults(sortedResults);
         setFilteredResults(sortedResults); // Save filtered results for further use
       } else {
@@ -335,8 +347,8 @@ const IndividualScore = () => {
       setLoading(false);
     }
   };
-  
-  
+
+
 
 
   const removeByExtension = (extensionInput: string) => {
@@ -380,7 +392,7 @@ const IndividualScore = () => {
     handleSort(sortCriteria);
   };
 
-  type FilterType = "WordPress" | "Joomla" | "Shell" | "Normal Website" | "All";
+  type FilterType = "WordPress" | "Joomla" | "Shell" | "DirectAdmin" | "Normal Website" | "All";
 
   const filterByType = (type: FilterType) => {
     if (type === "All") {
@@ -566,7 +578,7 @@ const IndividualScore = () => {
 
   const handlePleskProcess = async () => {
     try {
-      const joomlaUrls = results
+      const pleskUrls = results
         .filter((r) => r.type === "Plesk")
         .map((r) => ({
           url: r.cleanedUrl,
@@ -574,7 +586,7 @@ const IndividualScore = () => {
           password: r.password || "",
         }));
 
-      if (joomlaUrls.length === 0) {
+      if (pleskUrls.length === 0) {
         alert("No Plesk URLs to process.");
         return;
       }
@@ -592,14 +604,14 @@ const IndividualScore = () => {
       }, 500); // Increment progress every 500ms
 
       const response = await fetch(
-        "http://172.81.132.157:7350/plesk-process/",
-        // "http://127.0.0.1:8000/joomla-process/",
+        // "http://172.81.132.157:7350/plesk-process/",
+        "http://127.0.0.1:8000/plesk-process/",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ joomlaUrls }),
+          body: JSON.stringify({ pleskUrls }),
         }
       );
 
@@ -634,6 +646,80 @@ const IndividualScore = () => {
     } catch (error) {
       console.error("Error:", error);
       alert("An error occurred while processing Joomla files.");
+      setProcessing(false);
+    }
+  };
+
+  const handleDirectAdminProcess = async () => {
+    try {
+      const directAdminUrls = results
+        .filter((r) => r.type === "DirectAdmin")
+        .map((r) => ({
+          url: r.cleanedUrl,
+          username: r.username || "",
+          password: r.password || "",
+        }));
+
+      if (directAdminUrls.length === 0) {
+        alert("No DirectAdmin URLs to process.");
+        return;
+      }
+
+      setProcessing(true);
+      setProgress(0); // Reset progress
+      setShowDirectAdminPopup(true); // Show initial processing popup
+
+      // Simulate progress increment
+      const simulateProgress = setInterval(() => {
+        setProgress((prev) => {
+          const nextValue = prev + 1;
+          return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
+        });
+      }, 500); // Increment progress every 500ms
+
+      const response = await fetch(
+        // "http://172.81.132.157:7350/plesk-process/",
+        "https://alternative-gilligan-ott-04797199.koyeb.app/directAdmin-process/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ directAdminUrls }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Backend Error:", errorData);
+        throw new Error(errorData.detail || "Failed to process Plesk files.");
+      }
+
+      // Clear progress simulation
+      clearInterval(simulateProgress);
+
+      // Set progress to 100% on successful response
+      setProgress(100);
+
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      setResults(data.results); // Update results with the backend response
+      setProcessing(false);
+
+      // Transition to "Added Successfully" popup
+      setTimeout(() => {
+        setShowPopup(false); // Close initial popup
+        setTimeout(() => {
+          setshowDirectAdminSuccessPopup(true); // Show "Added Successfully" popup
+          setTimeout(() => {
+            setshowDirectAdminSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
+          }, 5000);
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred while processing DirectAdmin files.");
       setProcessing(false);
     }
   };
@@ -781,6 +867,14 @@ const IndividualScore = () => {
             disabled={results?.length === 0}
           >
             Add Plesk To DB
+          </button>
+
+          <button
+            onClick={() => setShowDirectAdminPopup(true)}
+            className="ml-4 px-4 py-2 bg-yellow-500 text-dark rounded hover:bg-green-700"
+            disabled={results?.length === 0}
+          >
+            Add DirectAdmin To DB
           </button>
 
           <div className="mb-4 pt-3 flex items-center space-x-4">
@@ -939,12 +1033,47 @@ const IndividualScore = () => {
                     onClick={handlePleskProcess}
                     className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
                   >
-                    Process Joomla Files
+                    Process Plesk Files
                   </button>
                 )}
 
                 <button
                   onClick={() => setShowPleskPopup(false)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  style={{ marginLeft: "5px" }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+
+          {showDirectAdminPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Process DirectAdmin Files</h2>
+                {processing ? (
+                  <div>
+                    <p>Processing... {progress}%</p>
+                    <div className="w-full bg-gray-200 rounded h-4">
+                      <div
+                        className="bg-blue-600 h-4 rounded"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleDirectAdminProcess}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
+                  >
+                    Process DirectAdmin Files
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowDirectAdminPopup(false)}
                   className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                   style={{ marginLeft: "5px" }}
                 >
@@ -986,6 +1115,15 @@ const IndividualScore = () => {
               <div className="bg-white p-6 rounded shadow-md">
                 <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
                 <p>Your Plesk files have been added to the database successfully.</p>
+              </div>
+            </div>
+          )}
+
+          {showDirectAdminSuccessPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
+                <p>Your DirectAdmin files have been added to the database successfully.</p>
               </div>
             </div>
           )}

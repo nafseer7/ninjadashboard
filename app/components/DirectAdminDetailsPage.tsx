@@ -15,10 +15,10 @@ interface WordPressUrl {
 
 interface FileDetails {
     filename: string;
-    wordpressUrls: WordPressUrl[];
+    directAdminUrls: WordPressUrl[];
 }
 
-const FileDetailsPage = ({ fileId }: { fileId: string }) => {
+const DirectAdminDetailsPage = ({ fileId }: { fileId: string }) => {
     const [fileDetails, setFileDetails] = useState<FileDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -29,17 +29,17 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
     useEffect(() => {
         const fetchFileDetails = async () => {
             try {
-                const response = await fetch(`/api/files/${fileId}`);
+                const response = await fetch(`/api/directadminfiles/${fileId}`);
                 if (!response.ok) {
                     throw new Error("Failed to fetch file details");
                 }
 
                 const data = await response.json();
-                const wordpressUrls = data.file.wordpressUrls;
+                const directAdminUrls = data.file.directAdminUrls;
 
                 // Fetch Moz API data for each URL
                 const enrichedUrls = await Promise.all(
-                    wordpressUrls.map(async (urlDetails: WordPressUrl) => {
+                    directAdminUrls.map(async (urlDetails: WordPressUrl) => {
                         const query = urlDetails.url;
                         const mozResponse = await fetch("/api/moz", {
                             method: "POST",
@@ -80,7 +80,7 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
                         return urlDetails; // Return original details if no Moz data
                     })
                 );
-                setFileDetails({ ...data.file, wordpressUrls: enrichedUrls });
+                setFileDetails({ ...data.file, directAdminUrls: enrichedUrls });
             } catch (err) {
                 console.error("Error fetching file details:", err);
                 setError("Failed to load file details. Please try again later.");
@@ -118,7 +118,7 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
         if (!fileDetails) return;
 
         const csvHeader = ["URL", "Username", "Password", "Page Authority", "Domain Authority", "Spam Score"];
-        const csvRows = fileDetails.wordpressUrls.map((urlDetails) =>
+        const csvRows = fileDetails.directAdminUrls.map((urlDetails) =>
             [
                 urlDetails.url,
                 urlDetails.username || "N/A",
@@ -147,7 +147,7 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
 
         const order = sortField === field && sortOrder === "asc" ? "desc" : "asc";
 
-        const sortedUrls = [...fileDetails.wordpressUrls].sort((a, b) => {
+        const sortedUrls = [...fileDetails.directAdminUrls].sort((a, b) => {
             const aValue = a[field] || 0;
             const bValue = b[field] || 0;
 
@@ -158,12 +158,12 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
             return order === "asc" ? +aValue - +bValue : +bValue - +aValue;
         });
 
-        setFileDetails({ ...fileDetails, wordpressUrls: sortedUrls });
+        setFileDetails({ ...fileDetails, directAdminUrls: sortedUrls });
         setSortField(field);
         setSortOrder(order);
     };
 
-    const filteredUrls = fileDetails?.wordpressUrls.filter((urlDetails) =>
+    const filteredUrls = fileDetails?.directAdminUrls.filter((urlDetails) =>
         urlDetails.url.toLowerCase().includes(searchQuery) ||
         (urlDetails.username?.toLowerCase().includes(searchQuery) || false) ||
         (urlDetails.password?.toLowerCase().includes(searchQuery) || false)
@@ -187,8 +187,8 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
             < div className="flex flex-col w-full" >
                 <Header />
                 < div className="container mx-auto p-4" >
-                    <h1 className="text-2xl font-bold mb-4" > File Details </h1>
-                    < h2 className="text-xl font-semibold mb-4" > File Name: {fileDetails.filename} </h2>
+                    <h1 className="text-2xl font-bold mb-4" > DirectAdmin Details </h1>
+                    < h2 className="text-xl font-semibold mb-4" > DirectAdmin File Name: {fileDetails.filename} </h2>
 
                     < div className="mb-4 flex items-center space-x-4" >
                         <input
@@ -277,4 +277,4 @@ const FileDetailsPage = ({ fileId }: { fileId: string }) => {
     );
 };
 
-export default FileDetailsPage;
+export default DirectAdminDetailsPage;
