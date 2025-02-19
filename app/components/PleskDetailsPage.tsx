@@ -26,6 +26,15 @@ const PleskDetailsPage = ({ fileId }: { fileId: string }) => {
     const [sortField, setSortField] = useState<keyof WordPressUrl | null>(null);
     const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
 
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+
+        // Clear credentials from Local Storage
+        localStorage.removeItem("username");
+        localStorage.removeItem("password");
+    };
+
     useEffect(() => {
         const fetchFileDetails = async () => {
             try {
@@ -181,14 +190,7 @@ const PleskDetailsPage = ({ fileId }: { fileId: string }) => {
         return <p>No file details found.</p>;
     }
 
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const handleLogout = () => {
-        setIsAuthenticated(false);
-
-        // Clear credentials from Local Storage
-        localStorage.removeItem("username");
-        localStorage.removeItem("password");
-    };
+    
 
     return (
         <div className="min-h-screen bg-gray-100 flex" >
