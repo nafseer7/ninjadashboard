@@ -264,9 +264,9 @@ const DirectAdminDetailsPage = ({ fileId }: { fileId: string }) => {
                             {
                                 filteredUrls?.map((urlDetails, index) => (
                                     <tr key={index} >
-                                        <td className="border border-gray-300 px-4 py-2" > {urlDetails.url} </td>
-                                        < td className="border border-gray-300 px-4 py-2" > {urlDetails.username} </td>
-                                        < td className="border border-gray-300 px-4 py-2" > {urlDetails.password} </td>
+                                        <td className="border border-gray-300 px-4 py-2" id="directadmin-url"> {urlDetails.url} </td>
+                                        < td className="border border-gray-300 px-4 py-2" id="directadmin-username"> {urlDetails.username} </td>
+                                        < td className="border border-gray-300 px-4 py-2" id="directadmin-password"> {urlDetails.password} </td>
                                         < td className="border border-gray-300 px-4 py-2" > {urlDetails.pageAuthority ?? "N/A"} </td>
                                         < td className="border border-gray-300 px-4 py-2" > {urlDetails.domainAuthority ?? "N/A"} </td>
                                         < td className="border border-gray-300 px-4 py-2" > {urlDetails.spamScore ?? "N/A"} </td>
