@@ -1,25 +1,31 @@
 import React from "react";
+import { FaBell, FaUser, FaUserCircle } from "react-icons/fa";
 
 const Header = () => {
   return (
-    <header className="bg-gradient-to-r from-blue-500 to-blue-700 text-white shadow-lg py-4 px-6 flex justify-between items-center">
+    <header className="bg-gray-900 text-gray-100 shadow-lg py-4 px-6 flex justify-between items-center">
+      {/* Logo and Title */}
       <div className="flex items-center gap-4">
-        <div className="bg-white rounded-full w-10 h-10 flex items-center justify-center text-blue-500 font-bold shadow">
-          D
+        <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center text-white font-bold shadow-lg">
+          <img src="ninja.png" alt="" />
         </div>
-        <h1 className="text-2xl font-bold tracking-wide">Admin Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-wide text-white">NINJA Dashboard</h1>
       </div>
+
+      {/* Right Section: Notifications & Profile */}
       <div className="flex items-center gap-6">
-        <button className="bg-blue-600 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded transition duration-200 shadow">
+        {/* Notifications */}
+        <button className="flex items-center gap-2 bg-gray-700 hover:bg-blue-500 text-gray-100 font-semibold py-2 px-4 rounded-lg transition duration-200 shadow-md">
+          <FaBell className="text-lg" />
           Notifications
         </button>
+
+        {/* User Profile */}
         <div className="flex items-center gap-3">
-          <span>Welcome, User!</span>
-          <img
-            src="https://via.placeholder.com/40"
-            alt="User Avatar"
-            className="w-10 h-10 rounded-full border-2 border-white shadow-sm"
-          />
+          <span className="text-sm">Welcome, <strong>Admin</strong></span>
+          <div className="relative">
+            <FaUser className="w-16 h-16 p-2 rounded-full border-2 border-white-500 shadow-md" />
+          </div>
         </div>
       </div>
     </header>
