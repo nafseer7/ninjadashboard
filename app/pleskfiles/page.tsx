@@ -11,7 +11,7 @@ const PleskFilesPage = () => {
   useEffect(() => {
     const fetchFiles = async () => {
       try {
-        const response = await fetch("/api/shellfiles"); // Internal API route
+        const response = await fetch("/api/pleskfiles"); // Internal API route
         if (!response.ok) {
           throw new Error("Failed to fetch files");
         }
@@ -69,10 +69,10 @@ const PleskFilesPage = () => {
                     <td className="border border-gray-300 px-4 py-2">{file.filename}</td>
                     <td className="border border-gray-300 px-4 py-2">{extractDateFromFilename(file.filename)}</td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
-                      {file.shellUrls?.length || 0}
+                      {file.pleskUrls?.length || 0}
                     </td>
                     <td className="border border-gray-300 px-4 py-2 text-center">
-                      <Link href={`/shellfiles/${file._id}`}>
+                      <Link href={`/pleskfiles/${file._id}`}>
                         <button className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
                           Access
                         </button>
