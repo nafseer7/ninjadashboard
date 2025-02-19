@@ -1,15 +1,15 @@
 import React from "react";
-import { FaBell, FaUser, FaUserCircle } from "react-icons/fa";
+import { FaBell, FaUserCircle, FaSignOutAlt, FaUser } from "react-icons/fa";
 
-const Header = () => {
+const Header = ({ handleLogout }: { handleLogout: () => void }) => {
   return (
     <header className="bg-gray-900 text-gray-100 shadow-lg py-4 px-6 flex justify-between items-center">
       {/* Logo and Title */}
       <div className="flex items-center gap-4">
-        <div className="bg-white rounded-full w-16 h-16 flex items-center justify-center text-white font-bold shadow-lg">
-          <img src="ninja.png" alt="" />
+        <div className="bg-blue-600 rounded-full w-10 h-10 flex items-center justify-center text-white font-bold shadow-lg">
+          D
         </div>
-        <h1 className="text-2xl font-bold tracking-wide text-white">NINJA Dashboard</h1>
+        <h1 className="text-2xl font-bold tracking-wide text-blue-400">Admin Dashboard</h1>
       </div>
 
       {/* Right Section: Notifications & Profile */}
@@ -24,9 +24,18 @@ const Header = () => {
         <div className="flex items-center gap-3">
           <span className="text-sm">Welcome, <strong>Admin</strong></span>
           <div className="relative">
-            <FaUser className="w-16 h-16 p-2 rounded-full border-2 border-white-500 shadow-md" />
+            <FaUser className="w-16 h-16 p-2 rounded-full border-2 border-blue-500 shadow-md" />
           </div>
         </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-500 text-white py-2 px-4 rounded-lg shadow-md transition duration-200"
+        >
+          <FaSignOutAlt />
+          Logout
+        </button>
       </div>
     </header>
   );

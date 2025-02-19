@@ -109,11 +109,20 @@ const ShellDetailsPage: React.FC = () => {
     setFileDetails(sortedDetails);
   };
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const handleLogout = () => {
+      setIsAuthenticated(false);
+
+      // Clear credentials from Local Storage
+      localStorage.removeItem("username");
+      localStorage.removeItem("password");
+  };
+
   return (
     <div className="flex">
       <LeftNavbar />
       <div className="flex flex-col w-full">
-        <Header />
+        <Header handleLogout={handleLogout}/>
         <div className="p-6">
           <h2 className="text-xl font-bold mb-4">File Details</h2>
           {pageName ? (

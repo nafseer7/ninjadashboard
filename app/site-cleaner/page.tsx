@@ -18,24 +18,24 @@ const SiteCleaner = () => {
             alert("Input is empty. Please enter URLs.");
             return;
         }
-    
+
         const urls = input
             .split("\n") // Split input into lines
             .map((url) => url.trim()) // Remove leading/trailing spaces
             .filter((url) => url); // Remove empty lines
-    
+
         console.log("Extracted URLs (Raw):", urls); // Debugging
-    
+
         const mappings = urls.map((original) => {
             try {
                 // Add `http://` if no protocol is specified
                 const urlWithProtocol = original.startsWith("http://") || original.startsWith("https://")
                     ? original
                     : `http://${original}`;
-    
+
                 const { hostname } = new URL(urlWithProtocol); // Extract hostname
                 console.log("Parsed Hostname:", hostname); // Debugging
-    
+
                 if (
                     hostname &&
                     /^[a-zA-Z][a-zA-Z0-9.-]*$/.test(hostname) &&
@@ -51,7 +51,7 @@ const SiteCleaner = () => {
             }
             return null;
         });
-    
+
         const uniqueMappings = Array.from(
             new Map(
                 mappings
@@ -59,16 +59,16 @@ const SiteCleaner = () => {
                     .map((mapping) => [mapping.cleaned, mapping])
             ).values()
         );
-    
+
         console.log("Unique Mappings:", uniqueMappings); // Debugging
-    
+
         // Update state with cleaned hostnames
         setUrlMappings(uniqueMappings); // Set all mappings
         setFilteredUrls(uniqueMappings.map((mapping) => mapping.cleaned)); // Set only cleaned hostnames
     };
-    
-    
-    
+
+
+
 
     const removeExtensions = () => {
         if (!removeExtensionsInput) {
@@ -143,13 +143,22 @@ const SiteCleaner = () => {
         }
     };
 
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+
+        // Clear credentials from Local Storage
+        localStorage.removeItem("username");
+        localStorage.removeItem("password");
+    };
+
 
     return (
         <>
             <div className="min-h-screen bg-gray-100 flex">
                 <LeftNavbar />
                 <div className="flex flex-col w-full">
-                    <Header />
+                    <Header handleLogout={handleLogout}/>
                     <div className="flex flex-col md:flex-row md:space-x-4 p-6">
                         <div className="flex-grow bg-white rounded-lg shadow-md p-6">
                             <h1 className="text-2xl font-bold mb-4">Site Cleaner</h1>

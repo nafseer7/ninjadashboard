@@ -43,15 +43,23 @@ const DirectAdminFilesPage = () => {
       second: "2-digit",
     });
   };
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+
+    // Clear credentials from Local Storage
+    localStorage.removeItem("username");
+    localStorage.removeItem("password");
+  };
 
   return (
     <>
       <div className="min-h-screen bg-gray-100 flex">
         <LeftNavbar />
         <div className="flex flex-col w-full">
-          <Header />
+          <Header handleLogout={handleLogout} />
           <div className="container mx-auto p-4">
-            <h1 className="text-2xl font-bold mb-4">Wordpress Processed Files</h1>
+            <h1 className="text-2xl font-bold mb-4">Direct Admin Processed Files</h1>
             <table className="table-auto w-full border-collapse border border-gray-300">
               <thead>
                 <tr>

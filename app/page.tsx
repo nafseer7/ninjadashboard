@@ -1,29 +1,50 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Header from "./components/header";
 import LeftNavbar from "./components/LeftNavbar";
 import MainPage from "./components/mainPage";
 import NotificationPanel from "./components/NotificationPanel";
-import { url } from "inspector";
 
 const Home = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
 
-  // Define valid credentials
+  // Valid credentials
   const VALID_USERNAME = "admin";
   const VALID_PASSWORD = "Ninja2025!";
 
+  // Check Local Storage for existing login
+  useEffect(() => {
+    const storedUsername = localStorage.getItem("username");
+    const storedPassword = localStorage.getItem("password");
+
+    if (storedUsername === VALID_USERNAME && storedPassword === VALID_PASSWORD) {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
   const handleLogin = () => {
     if (username === VALID_USERNAME && password === VALID_PASSWORD) {
-      setIsAuthenticated(true); // Set authenticated state to true
-      setError(""); // Clear any previous errors
+      setIsAuthenticated(true);
+      setError("");
+      
+      // Save credentials in Local Storage
+      localStorage.setItem("username", username);
+      localStorage.setItem("password", password);
     } else {
       setError("Invalid username or password. Please try again.");
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    
+    // Clear credentials from Local Storage
+    localStorage.removeItem("username");
+    localStorage.removeItem("password");
   };
 
   if (!isAuthenticated) {
@@ -31,25 +52,15 @@ const Home = () => {
       <div className="min-h-screen flex items-center justify-center bg-cover bg-center" style={{ backgroundImage: "url('/ninjamain.jpg')" }}>
         <div className="bg-white/10 p-8 rounded-lg shadow-lg backdrop-blur-lg border border-white/20 w-full max-w-md">
           <div className="flex justify-center mb-6">
-            <img
-              src="ninja.png"
-              alt="Ninja Dashboard"
-
-            />
+            <img src="ninja.png" alt="Ninja Dashboard" />
           </div>
           <h1 className="text-3xl font-bold text-center text-white mb-6 tracking-wide">
             NINJA DASHBOARD
           </h1>
-          {error && (
-            <p className="text-red-400 text-center font-medium mb-4">
-              {error}
-            </p>
-          )}
+          {error && <p className="text-red-400 text-center font-medium mb-4">{error}</p>}
+          
           <div className="mb-4">
-            <label
-              className="block text-sm font-semibold text-white mb-2"
-              htmlFor="username"
-            >
+            <label className="block text-sm font-semibold text-white mb-2" htmlFor="username">
               Username
             </label>
             <input
@@ -61,11 +72,9 @@ const Home = () => {
               placeholder="Enter your username"
             />
           </div>
+
           <div className="mb-4">
-            <label
-              className="block text-sm font-semibold text-white mb-2"
-              htmlFor="password"
-            >
+            <label className="block text-sm font-semibold text-white mb-2" htmlFor="password">
               Password
             </label>
             <input
@@ -77,6 +86,7 @@ const Home = () => {
               placeholder="Enter your password"
             />
           </div>
+
           <button
             onClick={handleLogin}
             className="w-full py-3 mt-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white font-semibold rounded-lg shadow-md hover:from-indigo-600 hover:to-purple-600 transition duration-200"
@@ -89,18 +99,17 @@ const Home = () => {
   }
 
   return (
-      <div className="min-h-screen bg-gray-100 flex">
-        <LeftNavbar />
-        <div className="flex flex-col w-full">
-          <Header />
-          <div className="flex flex-col md:flex-row md:space-x-4 p-6">
-           
-            <div className="flex-grow bg-white rounded-lg shadow-md p-6">
-              <MainPage />
-            </div>
+    <div className="min-h-screen bg-gray-100 flex">
+      <LeftNavbar />
+      <div className="flex flex-col w-full">
+        <Header handleLogout={handleLogout} />
+        <div className="flex flex-col md:flex-row md:space-x-4 p-6">
+          <div className="flex-grow bg-white rounded-lg shadow-md p-6">
+            <MainPage />
           </div>
         </div>
       </div>
+    </div>
   );
 };
 

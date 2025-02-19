@@ -3,6 +3,8 @@
 import React, { useState } from "react";
 import LeftNavbar from "../components/LeftNavbar";
 import Header from "../components/header";
+import { FaSearch, FaCopy, FaWordpress, FaTerminal, FaGlobe, FaSpinner } from "react-icons/fa";
+
 
 type Result = {
   originalUrl: string;
@@ -31,6 +33,12 @@ const getHostname = (rawUrl: string): string | null => {
     return null;
   }
 };
+
+interface StatItemProps {
+  icon: JSX.Element;
+  label: string;
+  count: number;
+}
 
 const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
   if (rawUrl.startsWith("plesk:") || rawUrl.startsWith("directadmin:")) {
@@ -799,14 +807,21 @@ const IndividualScore = () => {
   };
 
 
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const handleLogout = () => {
+    setIsAuthenticated(false);
 
+    // Clear credentials from Local Storage
+    localStorage.removeItem("username");
+    localStorage.removeItem("password");
+  };
 
 
   return (
     <div className="min-h-screen bg-gray-100 flex">
       <LeftNavbar />
       <div className="flex flex-col w-full">
-        <Header />
+        <Header handleLogout={handleLogout} />
         <div className="p-6">
           <h1 className="text-2xl font-bold mb-4">Get Scores</h1>
           <p className="text-gray-600 mb-6">
@@ -824,12 +839,14 @@ const IndividualScore = () => {
             />
           </div>
 
-          <button
-            onClick={handleSearch}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            disabled={loading}
-          >
-            {loading ? "Loading..." : "Search"}
+          <button onClick={handleSearch} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700" disabled={loading}>
+            {loading ? (
+              <>
+                <FaSpinner className="animate-spin" /> Searching...
+              </>
+            ) : (
+              "Search"
+            )}
           </button>
 
           <button
@@ -895,22 +912,56 @@ const IndividualScore = () => {
 
 
 
-          <div className="mt-6 p-4 bg-gray-100 rounded shadow-md">
-            <p className="text-gray-800 font-semibold">Number of Searched URLs: {results?.length}</p>
-            <p className="text-gray-800 font-semibold">
-              Number of Duplicated URLs: {results?.length - filteredResults.length}
-            </p>
-            <p className="text-gray-800 font-semibold">
-              Number of WordPress URLs: {results?.filter((r) => r.type === "WordPress").length}
-            </p>
-            <p className="text-gray-800 font-semibold">
-              Number of Shell URLs: {results?.filter((r) => r.type === "Shell").length}
-            </p>
-            <p className="text-gray-800 font-semibold">
-              Number of Normal Website URLs: {results?.filter((r) => r.type === "Normal Website").length}
-            </p>
+          <div className="mt-6 p-6 bg-white rounded-lg shadow-lg border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-700 mb-4">Search Statistics</h2>
+
+            <div className="space-y-4">
+              {/* Number of Searched URLs */}
+              <StatItem
+                icon={<FaSearch className="text-blue-500 text-2xl" />}
+                label="Searched URLs"
+                count={results?.length || 0}
+              />
+
+              {/* Number of Duplicated URLs */}
+              <StatItem
+                icon={<FaCopy className="text-red-500 text-2xl" />}
+                label="Duplicated URLs"
+                count={results?.length - filteredResults.length || 0}
+              />
+
+              {/* Number of WordPress URLs */}
+              <StatItem
+                icon={<FaWordpress className="text-indigo-500 text-2xl" />}
+                label="WordPress URLs"
+                count={results?.filter((r) => r.type === "WordPress").length || 0}
+              />
+
+              {/* Number of Shell URLs */}
+              <StatItem
+                icon={<FaTerminal className="text-gray-700 text-2xl" />}
+                label="Shell URLs"
+                count={results?.filter((r) => r.type === "Shell").length || 0}
+              />
+
+              {/* Number of Normal Website URLs */}
+              <StatItem
+                icon={<FaGlobe className="text-green-500 text-2xl" />}
+                label="Normal Website URLs"
+                count={results?.filter((r) => r.type === "Normal Website").length || 0}
+              />
+            </div>
           </div>
 
+
+          {loading && (
+            <div className="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 transition-opacity">
+              <div className="flex flex-col items-center">
+                <FaSpinner className="text-white text-6xl animate-spin mb-4" />
+                <p className="text-white text-lg font-semibold">Loading, please wait...</p>
+              </div>
+            </div>
+          )}
 
           {showPopup && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
@@ -1256,6 +1307,15 @@ const IndividualScore = () => {
     </div>
   );
 };
+
+
+const StatItem: React.FC<StatItemProps> = ({ icon, label, count }) => (
+  <div className="flex items-center bg-gray-100 px-4 py-3 rounded-lg shadow-sm">
+    <div className="mr-4">{icon}</div>
+    <p className="text-gray-800 font-medium flex-grow">{label}</p>
+    <span className="text-lg font-bold text-gray-900">{count}</span>
+  </div>
+);
 
 export default IndividualScore;
 

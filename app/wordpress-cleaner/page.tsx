@@ -72,12 +72,21 @@ const WordPressCleaner = () => {
             .catch((err) => alert("Failed to copy: " + err));
     };
 
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+
+        // Clear credentials from Local Storage
+        localStorage.removeItem("username");
+        localStorage.removeItem("password");
+    };
+
     return (
         <>
             <div className="min-h-screen bg-gray-100 flex">
                 <LeftNavbar />
                 <div className="flex flex-col w-full">
-                    <Header />
+                    <Header handleLogout={handleLogout} />
                     <div className="flex flex-col md:flex-row md:space-x-4 p-6">
                         <div className="flex-grow bg-white rounded-lg shadow-md p-6">
                             <h1 className="text-2xl font-bold mb-4">WordPress Cleaner</h1>

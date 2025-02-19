@@ -161,6 +161,16 @@ const ProcessFilesPage: React.FC = () => {
     fetchFilesData();
   }, []);
 
+
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const handleLogout = () => {
+      setIsAuthenticated(false);
+
+      // Clear credentials from Local Storage
+      localStorage.removeItem("username");
+      localStorage.removeItem("password");
+  };
   return (
     <>
 
@@ -183,7 +193,7 @@ const ProcessFilesPage: React.FC = () => {
       <div className="flex">
         <LeftNavbar />
         <div className="flex flex-col w-full">
-          <Header />
+          <Header handleLogout={handleLogout} />
           <div className="p-6">
             <h2 className="text-xl font-bold mb-4">Process Files</h2>
             <p className="mb-6">Process files to check for input elements and update their status.</p>
