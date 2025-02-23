@@ -15,22 +15,28 @@ const WordPressCleaner = () => {
             alert("Input is empty. Please enter data.");
             return;
         }
-
+    
         const lines = input
             .split("\n") // Split input into lines
             .map((line) => line.trim()) // Remove leading/trailing spaces
             .filter((line) => line); // Remove empty lines
-
+    
         const processed = lines.map((line) => {
             let url: string = "";
             let username: string | undefined;
             let password: string | undefined;
-
+    
             if (line.includes("#")) {
                 // Handle `#username@password` format
                 const [baseUrl, credentials] = line.split("#");
                 url = baseUrl.trim();
-                [username, password] = credentials.split("@");
+    
+                // Fix: Find the last occurrence of '@' to correctly separate username and password
+                const lastAtIndex = credentials.lastIndexOf("@");
+                if (lastAtIndex !== -1) {
+                    username = credentials.substring(0, lastAtIndex).trim();
+                    password = credentials.substring(lastAtIndex + 1).trim();
+                }
             } else if (line.includes(":")) {
                 // Handle `:username:password` format
                 const parts = line.split(":");
@@ -40,7 +46,7 @@ const WordPressCleaner = () => {
                     password = parts[parts.length - 1].trim();
                 }
             }
-
+    
             if (url && username && password) {
                 return `${url}#${username}|${password}`;
             } else {
@@ -48,12 +54,13 @@ const WordPressCleaner = () => {
                 return null;
             }
         });
-
+    
         const validProcessedUrls = processed.filter((url): url is string => url !== null);
-
+    
         setProcessedUrls(validProcessedUrls);
         setFilteredUrls(validProcessedUrls);
     };
+    
 
     const filterByExtensions = () => {
         const filterValue = filterExtensions.trim();
