@@ -22,13 +22,27 @@ const WordPressCleaner = () => {
             .filter((line) => line); // Remove empty lines
 
         const processed = lines.map((line) => {
-            const parts = line.split(/\s+|,/) // Split by space or comma
-                .map((part) => part.trim()) // Trim each part
-                .filter((part) => part); // Remove empty parts
+            let url: string = "";
+            let username: string | undefined;
+            let password: string | undefined;
 
-            if (parts.length >= 3) {
-                const [sitename, username, password] = parts;
-                return `"${sitename}";"${username}";"${password}"`;
+            if (line.includes("#")) {
+                // Handle `#username@password` format
+                const [baseUrl, credentials] = line.split("#");
+                url = baseUrl.trim();
+                [username, password] = credentials.split("@");
+            } else if (line.includes(":")) {
+                // Handle `:username:password` format
+                const parts = line.split(":");
+                if (parts.length >= 3) {
+                    url = parts.slice(0, -2).join(":").trim();
+                    username = parts[parts.length - 2].trim();
+                    password = parts[parts.length - 1].trim();
+                }
+            }
+
+            if (url && username && password) {
+                return `${url}#${username}|${password}`;
             } else {
                 console.warn(`Skipping line: "${line}" - Invalid format`);
                 return null;
@@ -37,31 +51,29 @@ const WordPressCleaner = () => {
 
         const validProcessedUrls = processed.filter((url): url is string => url !== null);
 
-        setProcessedUrls(validProcessedUrls); // Save processed data
-        setFilteredUrls(validProcessedUrls); // Display all processed data by default
+        setProcessedUrls(validProcessedUrls);
+        setFilteredUrls(validProcessedUrls);
     };
 
     const filterByExtensions = () => {
         const filterValue = filterExtensions.trim();
 
         if (!filterValue) {
-            // Reset to all processed URLs if filter input is empty
             setFilteredUrls(processedUrls);
             return;
         }
 
         const extensions = filterValue
-            .split(",") // Split by comma
-            .map((ext) => ext.trim().toLowerCase()) // Trim and lowercase each extension
-            .filter((ext) => ext); // Remove empty extensions
+            .split(",")
+            .map((ext) => ext.trim().toLowerCase())
+            .filter((ext) => ext);
 
         const filtered = processedUrls.filter((line) => {
-            // Extract the domain (sitename) part from the processed line
-            const sitename = line.match(/^"([^"]+)";/)?.[1] || "";
-            return extensions.some((ext) => sitename.endsWith(ext)); // Check if domain ends with any extension
+            const sitename = line.match(/^([^!]+)!username!/)?.[1] || "";
+            return extensions.some((ext) => sitename.endsWith(ext));
         });
 
-        setFilteredUrls(filtered); // Update filtered URLs
+        setFilteredUrls(filtered);
     };
 
     const copyToClipboard = (data: string[]) => {
@@ -75,8 +87,6 @@ const WordPressCleaner = () => {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const handleLogout = () => {
         setIsAuthenticated(false);
-
-        // Clear credentials from Local Storage
         localStorage.removeItem("username");
         localStorage.removeItem("password");
     };
@@ -92,12 +102,11 @@ const WordPressCleaner = () => {
                             <h1 className="text-2xl font-bold mb-4">WordPress Cleaner</h1>
                             <textarea
                                 className="w-full h-40 p-2 border border-gray-300 rounded mb-4"
-                                placeholder="Enter data line by line (e.g., sitename username password)..."
+                                placeholder="Enter data line by line (e.g., sitename:username:password or sitename#username@password)..."
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                             ></textarea>
 
-                            {/* Process Buttons */}
                             <div className="mb-4">
                                 <button
                                     onClick={processInput}
@@ -107,7 +116,6 @@ const WordPressCleaner = () => {
                                 </button>
                             </div>
 
-                            {/* Filter Section */}
                             <div className="mb-4">
                                 <input
                                     type="text"
@@ -117,7 +125,7 @@ const WordPressCleaner = () => {
                                     onChange={(e) => {
                                         setFilterExtensions(e.target.value);
                                         if (!e.target.value.trim()) {
-                                            setFilteredUrls(processedUrls); // Reset to all processed URLs when input is cleared
+                                            setFilteredUrls(processedUrls);
                                         }
                                     }}
                                 />
@@ -129,7 +137,6 @@ const WordPressCleaner = () => {
                                 </button>
                             </div>
 
-                            {/* Results Section */}
                             <div className="mb-4">
                                 <h2 className="text-lg font-semibold mb-2">Processed Results</h2>
                                 <textarea
@@ -139,7 +146,6 @@ const WordPressCleaner = () => {
                                 ></textarea>
                             </div>
 
-                            {/* Copy Buttons */}
                             <div className="mb-4 flex space-x-4">
                                 <button
                                     onClick={() => copyToClipboard(filteredUrls)}

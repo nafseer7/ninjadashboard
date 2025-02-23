@@ -60,7 +60,7 @@ const extractCredentials = (rawUrl: string): { username?: string; password?: str
   const hashIndex = rawUrl.indexOf("#");
   if (hashIndex !== -1) {
     const credentialsPart = rawUrl.substring(hashIndex + 1); // Extract part after #
-    const [username, password] = credentialsPart.split("@"); // Split by '@' for username and password
+    const [username, password] = credentialsPart.split("|"); // Split by '@' for username and password
     return {
       username: username?.trim(),
       password: password?.trim(),
@@ -158,7 +158,7 @@ const IndividualScore = () => {
 
     if (hashIndex !== -1) {
       const credentialsPart = rawUrl.substring(hashIndex + 1); // Extract part after #
-      [username, password] = credentialsPart.split("@"); // Split by '@' for username and password
+      [username, password] = credentialsPart.split("|"); // Split by '@' for username and password
       username = username?.trim();
       password = password?.trim();
     } else if (parts.length >= 3) {
