@@ -41,7 +41,7 @@ interface StatItemProps {
 }
 
 const extractCredentials = (rawUrl: string): { username?: string; password?: string } => {
-  if (rawUrl.startsWith("plesk:") || rawUrl.startsWith("directadmin:")) {
+  if (rawUrl.startsWith("plesk:") || rawUrl.startsWith("directadmin:") || rawUrl.includes("login.aspx")) {
     const parts = rawUrl.split("|");
     return parts.length === 3 ? { username: parts[1].trim(), password: parts[2].trim() } : {};
   }
@@ -66,6 +66,8 @@ const extractCredentials = (rawUrl: string): { username?: string; password?: str
       password: password?.trim(),
     };
   }
+
+ 
 
   return {};
 };
@@ -144,7 +146,7 @@ const IndividualScore = () => {
     document.body.removeChild(link);
   };
 
-  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Plesk" | "DirectAdmin" | "Normal Website" => {
+  const classifyUrlType = (hostname: string, rawUrl: string): "WordPress" | "Shell" | "Joomla" | "Plesk" | "DirectAdmin" | "RdWeb" | "Normal Website" => {
     if (rawUrl.startsWith("plesk:")) return "Plesk";
     if (rawUrl.startsWith("directadmin:")) return "DirectAdmin";
 
@@ -171,6 +173,9 @@ const IndividualScore = () => {
       return "Joomla";
     }
 
+    if (domain?.includes("/login.aspx")) {
+      return "RdWeb";
+    }
 
 
     // Check if it matches the WordPress website pattern
@@ -247,7 +252,7 @@ const IndividualScore = () => {
 
           const cleanedUrl = getHostname(originalUrl) || "";
           const type = classifyUrlType(cleanedUrl, rawUrl);
-          const credentials = (type === "WordPress" || type === "Joomla" || type === "Plesk" || type === "DirectAdmin") ? extractCredentials(rawUrl) : {};
+          const credentials = (type === "WordPress" || type === "Joomla" || type === "Plesk" || type === "DirectAdmin" || type === "RdWeb") ? extractCredentials(rawUrl) : {};
 
           return {
             query: cleanedUrl,
@@ -336,7 +341,7 @@ const IndividualScore = () => {
 
         // Sort results by type to group Joomla, WordPress, Shell, Plesk, and Normal Website
         const sortedResults = uniqueResults.sort((a, b) => {
-          const typeOrder = { "WordPress": 1, "Shell": 2, "Joomla": 3, "Plesk": 4, "DirectAdmin": 5, "Normal Website": 6 };
+          const typeOrder = { "WordPress": 1, "Shell": 2, "Joomla": 3, "Plesk": 4, "DirectAdmin": 5, "RdWeb": 6, "Normal Website": 6 };
           return typeOrder[a.type] - typeOrder[b.type];
         });
 
@@ -400,7 +405,7 @@ const IndividualScore = () => {
     handleSort(sortCriteria);
   };
 
-  type FilterType = "WordPress" | "Joomla" | "Shell" | "DirectAdmin" | "Normal Website" | "All";
+  type FilterType = "WordPress" | "Joomla" | "Shell" | "DirectAdmin" | "RdWeb" | "Normal Website" | "All";
 
   const filterByType = (type: FilterType) => {
     if (type === "All") {

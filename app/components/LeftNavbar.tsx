@@ -10,6 +10,7 @@ import {
   FaTrashAlt,
   FaSignOutAlt,
   FaCheckCircle,
+  FaWindows,
 } from "react-icons/fa";
 
 const LeftNavbar = () => {
@@ -36,6 +37,8 @@ const LeftNavbar = () => {
         <NavItem href="/wordpress-cleaner" icon={<FaWordpress />} text="WordPress Site Cleaner" />
         <NavItem href="/plesk-cleaner" icon={<FaServer />} text="Plesk Site Cleaner" />
         <NavItem href="/directadmin-cleaner" icon={<FaCogs />} text="DirectAdmin Site Cleaner" />
+        {/* <NavItem href="/rdweb-cleaner" icon={<FaWindows />} text="RdWeb Site Cleaner" /> */}
+        <NavItem href="/joomla-cleaner" icon={<FaJoomla />} text="Joomla Site Cleaner" />
       </ul>
 
       {/* Logout Button */}
