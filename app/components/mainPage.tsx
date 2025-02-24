@@ -23,7 +23,8 @@ const MainPage = () => {
       data: [
         { href: "wordpress-cleaner", icon: <FaWordpress className="text-blue-500 text-4xl" />, title: "WordPress Cleaner", description: "Clean and optimize your WordPress site" },
         { href: "plesk-cleaner", icon: <FaServer className="text-purple-500 text-4xl" />, title: "Plesk Cleaner", description: "Clean unnecessary Plesk data" },
-        { href: "directadmin-cleaner", icon: <FaCogs className="text-orange-500 text-4xl" />, title: "DirectAdmin Cleaner", description: "Clear and optimize DirectAdmin panel" }
+        { href: "directadmin-cleaner", icon: <FaCogs className="text-orange-500 text-4xl" />, title: "DirectAdmin Cleaner", description: "Clear and optimize DirectAdmin panel" },
+        { href: "joomla-cleaner", icon: <FaJoomla className="text-green-600 text-4xl" />, title: "Joomla Cleaner", description: "Clear and optimize Joomla panel" }
       ]
     },
     {
