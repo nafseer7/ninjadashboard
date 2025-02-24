@@ -99,6 +99,7 @@ const IndividualScore = () => {
   const [showJoomlaPopup, setShowJoomlaPoup] = useState<boolean>(false);
   const [showPleskPopup, setShowPleskPopup] = useState<boolean>(false);
   const [showDirectAdminPopup, setShowDirectAdminPopup] = useState<boolean>(false);
+  const [showRdWebPopup, setShowRdWebPopup] = useState<boolean>(false);
   const [processing, setProcessing] = useState<boolean>(false);
   const [progress, setProgress] = useState<number>(0);
   const [showSuccessPopup, setShowSuccessPopup] = useState<boolean>(false);
@@ -106,6 +107,7 @@ const IndividualScore = () => {
   const [showJoomlaSuccessPopup, setShowJoomlaSuccessPopup] = useState<boolean>(false);
   const [showPleskSuccessPopup, setShowPleskSuccessPopup] = useState<boolean>(false);
   const [showDirectAdminSuccessPopup, setshowDirectAdminSuccessPopup] = useState<boolean>(false);
+  const [showRdWebSuccessPopup, setShowRdWebSuccessPopup] = useState<boolean>(false);
   const [extensionInput, setExtensionInput] = useState<string>("");
 
 
@@ -664,6 +666,81 @@ const IndividualScore = () => {
     }
   };
 
+  const handleRdWebProcess = async () => {
+    try {
+      const rdWebUrls = results
+        .filter((r) => r.type === "RdWeb")
+        .map((r) => ({
+          url: r.cleanedUrl,
+          username: r.username || "",
+          password: r.password || "",
+        }));
+
+      if (rdWebUrls.length === 0) {
+        alert("No RdWeb URLs to process.");
+        return;
+      }
+
+      setProcessing(true);
+      setProgress(0); // Reset progress
+      setShowPopup(true); // Show initial processing popup
+
+      // Simulate progress increment
+      const simulateProgress = setInterval(() => {
+        setProgress((prev) => {
+          const nextValue = prev + 1;
+          return nextValue >= 90 ? 90 : nextValue; // Cap progress at 90% until response
+        });
+      }, 500); // Increment progress every 500ms
+
+      const response = await fetch(
+        // "http://172.81.132.157:7350/plesk-process/",
+        "http://127.0.0.1:8000/rdWeb-process",
+        // "https://constitutional-imelda-ott-0f75c217.koyeb.app/plesk-process/",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ rdWebUrls }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Backend Error:", errorData);
+        throw new Error(errorData.detail || "Failed to process Plesk files.");
+      }
+
+      // Clear progress simulation
+      clearInterval(simulateProgress);
+
+      // Set progress to 100% on successful response
+      setProgress(100);
+
+      const data = await response.json();
+      console.log("Backend response:", data);
+
+      setResults(data.results); // Update results with the backend response
+      setProcessing(false);
+
+      // Transition to "Added Successfully" popup
+      setTimeout(() => {
+        setShowRdWebPopup(false); // Close initial popup
+        setTimeout(() => {
+          setShowRdWebSuccessPopup(true); // Show "Added Successfully" popup
+          setTimeout(() => {
+            setShowRdWebSuccessPopup(false); // Automatically close "Added Successfully" popup after 5 seconds
+          }, 5000);
+        }, 500);
+      }, 500);
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred while processing RDWEB files.");
+      setProcessing(false);
+    }
+  };
+
   const handleDirectAdminProcess = async () => {
     try {
       const directAdminUrls = results
@@ -900,6 +977,14 @@ const IndividualScore = () => {
             Add DirectAdmin To DB
           </button>
 
+          <button
+            onClick={() => setShowRdWebPopup(true)}
+            className="ml-4 px-4 py-2 bg-yellow-500 text-dark rounded hover:bg-green-700"
+            disabled={results?.length === 0}
+          >
+            Add RdWeb To DB
+          </button>
+
           <div className="mb-4 pt-3 flex items-center space-x-4">
             <input
               type="text"
@@ -994,6 +1079,40 @@ const IndividualScore = () => {
 
                 <button
                   onClick={() => setShowPopup(false)}
+                  className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
+                  style={{ marginLeft: "5px" }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          )}
+
+          {showRdWebPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Process RdWeb Files</h2>
+                {processing ? (
+                  <div>
+                    <p>Processing... {progress}%</p>
+                    <div className="w-full bg-gray-200 rounded h-4">
+                      <div
+                        className="bg-blue-600 h-4 rounded"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleRdWebProcess}
+                    className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 mb-4"
+                  >
+                    Process RdWeb Files
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowRdWebPopup(false)}
                   className="mt-4 px-4 py-2 bg-gray-600 text-white rounded hover:bg-gray-700"
                   style={{ marginLeft: "5px" }}
                 >
@@ -1181,6 +1300,15 @@ const IndividualScore = () => {
               <div className="bg-white p-6 rounded shadow-md">
                 <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
                 <p>Your DirectAdmin files have been added to the database successfully.</p>
+              </div>
+            </div>
+          )}
+
+          {showRdWebSuccessPopup && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+              <div className="bg-white p-6 rounded shadow-md">
+                <h2 className="text-xl font-bold mb-4">Added Successfully</h2>
+                <p>Your RdWeb files have been added to the database successfully.</p>
               </div>
             </div>
           )}
