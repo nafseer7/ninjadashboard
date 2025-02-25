@@ -17,28 +17,36 @@ const WordPressCleaner = () => {
         }
     
         const lines = input
-            .split("\n") // Split input into lines
-            .map((line) => line.trim()) // Remove leading/trailing spaces
-            .filter((line) => line); // Remove empty lines
+            .split("\n")
+            .map((line) => line.trim())
+            .filter((line) => line);
     
         const processed = lines.map((line) => {
             let url: string = "";
             let username: string | undefined;
             let password: string | undefined;
     
-            if (line.includes("#")) {
-                // Handle `#username@password` format
+            // First try to process semicolon format
+            if (line.includes(";")) {
+                const parts = line.split(";");
+                if (parts.length === 3) {
+                    url = parts[0].trim();
+                    username = parts[1].trim();
+                    password = parts[2].trim();
+                }
+            } 
+            // Then try hash format
+            else if (line.includes("#")) {
                 const [baseUrl, credentials] = line.split("#");
                 url = baseUrl.trim();
-    
-                // Fix: Find the last occurrence of '@' to correctly separate username and password
                 const lastAtIndex = credentials.lastIndexOf("@");
                 if (lastAtIndex !== -1) {
                     username = credentials.substring(0, lastAtIndex).trim();
                     password = credentials.substring(lastAtIndex + 1).trim();
                 }
-            } else if (line.includes(":")) {
-                // Handle `:username:password` format
+            } 
+            // Finally try colon format
+            else if (line.includes(":")) {
                 const parts = line.split(":");
                 if (parts.length >= 3) {
                     url = parts.slice(0, -2).join(":").trim();
@@ -61,6 +69,7 @@ const WordPressCleaner = () => {
         setFilteredUrls(validProcessedUrls);
     };
     
+    
 
     const filterByExtensions = () => {
         const filterValue = filterExtensions.trim();
@@ -76,8 +85,9 @@ const WordPressCleaner = () => {
             .filter((ext) => ext);
 
         const filtered = processedUrls.filter((line) => {
-            const sitename = line.match(/^([^!]+)!username!/)?.[1] || "";
-            return extensions.some((ext) => sitename.endsWith(ext));
+            // Extract the URL part before the # symbol
+            const url = line.split("#")[0];
+            return extensions.some((ext) => url.toLowerCase().endsWith(ext));
         });
 
         setFilteredUrls(filtered);
@@ -176,3 +186,4 @@ const WordPressCleaner = () => {
 };
 
 export default WordPressCleaner;
+
