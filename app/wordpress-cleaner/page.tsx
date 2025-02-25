@@ -15,17 +15,23 @@ const WordPressCleaner = () => {
             alert("Input is empty. Please enter data.");
             return;
         }
-    
-        const lines = input
-            .split("\n")
+
+        // First, split the input by common URL patterns
+        const splitByDomains = input
+            .replace(/https?:\/\//g, '\nhttps://')  // Add newline before each http:// or https://
+            .trim()  // Remove leading/trailing whitespace
+            .split('\n')
+            .filter(line => line.trim());  // Remove empty lines
+
+        const lines = splitByDomains
             .map((line) => line.trim())
-            .filter((line) => line);
-    
+            .filter((line) => line.includes('/'));  // Ensure line contains a URL
+
         const processed = lines.map((line) => {
             let url: string = "";
             let username: string | undefined;
             let password: string | undefined;
-    
+
             // First try to process semicolon format
             if (line.includes(";")) {
                 const parts = line.split(";");
@@ -39,10 +45,17 @@ const WordPressCleaner = () => {
             else if (line.includes("#")) {
                 const [baseUrl, credentials] = line.split("#");
                 url = baseUrl.trim();
-                const lastAtIndex = credentials.lastIndexOf("@");
-                if (lastAtIndex !== -1) {
-                    username = credentials.substring(0, lastAtIndex).trim();
-                    password = credentials.substring(lastAtIndex + 1).trim();
+                if (credentials.includes("|")) {
+                    // Handle already formatted data
+                    const [user, pass] = credentials.split("|");
+                    username = user.trim();
+                    password = pass.trim();
+                } else {
+                    const lastAtIndex = credentials.lastIndexOf("@");
+                    if (lastAtIndex !== -1) {
+                        username = credentials.substring(0, lastAtIndex).trim();
+                        password = credentials.substring(lastAtIndex + 1).trim();
+                    }
                 }
             } 
             // Finally try colon format
@@ -54,7 +67,7 @@ const WordPressCleaner = () => {
                     password = parts[parts.length - 1].trim();
                 }
             }
-    
+
             if (url && username && password) {
                 return `${url}#${username}|${password}`;
             } else {
@@ -62,9 +75,8 @@ const WordPressCleaner = () => {
                 return null;
             }
         });
-    
+
         const validProcessedUrls = processed.filter((url): url is string => url !== null);
-    
         setProcessedUrls(validProcessedUrls);
         setFilteredUrls(validProcessedUrls);
     };
