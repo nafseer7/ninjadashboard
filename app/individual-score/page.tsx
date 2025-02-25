@@ -205,7 +205,16 @@ const IndividualScore = () => {
     setResults([]);
 
     try {
-      const urls = url
+      // First decode the URL-encoded text
+      const decodedInput = decodeURIComponent(url)
+        .replace(/%0A/g, '\n')  // Replace URL-encoded newlines
+        .replace(/%7C/g, '|')   // Replace URL-encoded pipes
+        .replace(/%23/g, '#')   // Replace URL-encoded hash
+        .replace(/%40/g, '@')   // Replace URL-encoded @
+        .replace(/\r\n/g, '\n') // Normalize Windows line endings
+        .replace(/\r/g, '\n');  // Normalize Mac line endings
+
+      const urls = decodedInput
         .split("\n")
         .map((u) => u.trim())
         .filter((u) => u);
@@ -223,8 +232,6 @@ const IndividualScore = () => {
         }
         return u;
       });
-
-
 
       const filteredUrls = normalizedUrls.filter((item) => {
         const host = getHostname(item.split(",")[0]); // Extract the URL before the first comma
