@@ -25,13 +25,20 @@ const LeftNavbar = () => {
       {/* Navigation Links */}
       <ul className="space-y-4">
         <NavItem href="/" icon={<FaTachometerAlt />} text="Dashboard" />
+        <h5>Access</h5>
+        <hr />
         <NavItem href="/files" icon={<FaWordpress />} text="WordPress Access" />
         <NavItem href="/shellfiles" icon={<FaTerminal />} text="Shell Access" />
         <NavItem href="/directadmin-access" icon={<FaCogs />} text="DirectAdmin Access" />
         <NavItem href="/joomlafiles" icon={<FaJoomla />} text="Joomla Access" />
         <NavItem href="/pleskfiles" icon={<FaServer />} text="Plesk Access" />
+        <NavItem href="/rdweb-access" icon={<FaWindows />} text="RDWeb Access" />
+        
+        <h5>Scores</h5>
+        <hr />
         <NavItem href="/individual-score" icon={<FaCheckCircle />} text="Get Score Individually" />
-
+        <h5>Cleaners</h5>
+        <hr />
         {/* Site Cleaners */}
         <NavItem href="/site-cleaner" icon={<FaTrashAlt />} text="Site Cleaner" />
         <NavItem href="/wordpress-cleaner" icon={<FaWordpress />} text="WordPress Site Cleaner" />

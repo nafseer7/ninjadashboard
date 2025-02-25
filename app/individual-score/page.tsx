@@ -695,7 +695,7 @@ const IndividualScore = () => {
 
       const response = await fetch(
         // "http://172.81.132.157:7350/plesk-process/",
-        "http://127.0.0.1:8000/rdWeb-process",
+        "http://127.0.0.1:8000/rdweb-process",
         // "https://constitutional-imelda-ott-0f75c217.koyeb.app/plesk-process/",
         {
           method: "POST",
